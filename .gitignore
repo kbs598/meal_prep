@@ -1,0 +1,13 @@
+# Packages installed specifically for this computer
+packages/
+
+# Personal recipes, settings, pantry items, and deals
+user_data/*.rds
+
+# Publishing credentials and records
+rsconnect/
+
+# R and RStudio temporary files
+.Rhistory
+.RData
+.Rproj.user/

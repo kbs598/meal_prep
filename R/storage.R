@@ -1,0 +1,89 @@
+state_file <- function(app_dir = getwd()) file.path(app_dir, "user_data", "state.rds")
+custom_recipe_file <- function(app_dir = getwd()) file.path(app_dir, "user_data", "custom_recipes.rds")
+deals_file <- function(app_dir = getwd()) file.path(app_dir, "user_data", "deals.rds")
+
+default_state <- function() {
+  list(
+    pantry_items = character(),
+    recent_ids = character(),
+    settings = list(
+      proteins = c("Chicken", "Turkey", "Beef", "Pork", "Fish", "Meatless"),
+      adults = 2,
+      toddlers = 2,
+      young_children = 1,
+      toddler_weight = 0.4,
+      child_weight = 0.6,
+      lunch_servings = 2,
+      season_region = "Southeast",
+      zip_code = ""
+    )
+  )
+}
+
+empty_custom_recipe_data <- function() {
+  list(
+    recipes = data.frame(
+      recipe_id = character(), recipe_name = character(), protein = character(),
+      minutes = numeric(), base_servings = numeric(), description = character(),
+      kid_note = character(), instructions = character(), source = character(),
+      stringsAsFactors = FALSE
+    ),
+    ingredients = data.frame(
+      recipe_id = character(), quantity = numeric(), unit = character(),
+      ingredient = character(), category = character(), stringsAsFactors = FALSE
+    )
+  )
+}
+
+load_custom_recipe_data <- function(path) {
+  fallback <- empty_custom_recipe_data()
+  if (!file.exists(path)) return(fallback)
+  saved <- tryCatch(readRDS(path), error = function(e) NULL)
+  if (is.null(saved) || !is.list(saved) || is.null(saved$recipes) || is.null(saved$ingredients)) {
+    return(fallback)
+  }
+  saved
+}
+
+save_custom_recipe_data <- function(data, path) {
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  saveRDS(data, path)
+  invisible(path)
+}
+
+empty_deals <- function() {
+  data.frame(
+    deal_id = character(), store = character(), ingredient = character(),
+    offer = character(), start_date = as.Date(character()),
+    end_date = as.Date(character()), stringsAsFactors = FALSE
+  )
+}
+
+load_deals <- function(path) {
+  if (!file.exists(path)) return(empty_deals())
+  saved <- tryCatch(readRDS(path), error = function(e) NULL)
+  if (is.null(saved) || !is.data.frame(saved)) return(empty_deals())
+  saved$start_date <- as.Date(saved$start_date)
+  saved$end_date <- as.Date(saved$end_date)
+  saved
+}
+
+save_deals <- function(deals, path) {
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  saveRDS(deals, path)
+  invisible(path)
+}
+
+load_state <- function(path) {
+  fallback <- default_state()
+  if (!file.exists(path)) return(fallback)
+  saved <- tryCatch(readRDS(path), error = function(e) NULL)
+  if (is.null(saved) || !is.list(saved)) return(fallback)
+  utils::modifyList(fallback, saved)
+}
+
+save_state <- function(state, path) {
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  saveRDS(state, path)
+  invisible(path)
+}
