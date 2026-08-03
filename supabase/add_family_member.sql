@@ -3,9 +3,9 @@
 
 insert into public.family_members (family_id, user_id, role)
 select
-  'REPLACE-WITH-FAMILY-ID'::uuid,
+  '3381218a-bd67-47d9-abcc-a51f8e32f23f'::uuid,
   id,
   'member'
 from auth.users
-where lower(email) = lower('REPLACE-WITH-RELATIVE-EMAIL@example.com')
+where lower(email) = lower('judy.bagley@furman.edu')
 on conflict (family_id, user_id) do nothing;

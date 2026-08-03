@@ -155,12 +155,6 @@ builtin_recipe_data <- function() {
       c("2|can|chickpeas|Pantry", "1|can|coconut milk|Pantry", "1|can|diced tomatoes|Pantry", "5|oz|baby spinach|Produce", "1.5|cup|white rice|Pantry", "1|tbsp|olive oil|Pantry", "0.5|tsp|garlic powder|Pantry", "0.5|tsp|turmeric (certified GF)|Pantry")
     ),
     make_recipe(
-      "lentil_pasta", "Tomato Lentil Pasta", "Meatless", 25,
-      "Protein-rich lentils turn simple tomato pasta into a filling dinner.",
-      "Cook pasta according to package directions. Warm marinara with drained lentils and spinach until the spinach wilts. Toss with pasta and top with Parmesan.",
-      c("12|oz|gluten-free pasta|Pantry", "24|oz|marinara sauce (certified GF)|Pantry", "1|can|lentils|Pantry", "5|oz|baby spinach|Produce", "0.5|cup|grated Parmesan|Dairy")
-    ),
-    make_recipe(
       "veggie_egg_rice", "Veggie Egg Fried Rice", "Meatless", 20,
       "A fast pantry meal with eggs, vegetables, and leftover rice.",
       "Scramble eggs in half the oil and set aside. Add remaining oil, cold rice, peas and carrots, and tamari. Stir-fry until hot, then fold the eggs back in.",
@@ -221,41 +215,6 @@ builtin_recipe_data <- function() {
       "Toast bread. Mash avocado with lemon. Cook eggs to your preferred doneness and place on the avocado toast.",
       c("8|slice|gluten-free bread|Bakery", "2|count|avocados|Produce", "8|count|eggs|Dairy", "1|count|lemon|Produce"),
       meal_type = "Breakfast", calories = 430, protein_g = 20, fiber_g = 9
-    ),
-    make_recipe(
-      "lunch_turkey_rollups", "Turkey and Cheese Roll-Up Plates", "Turkey", 10,
-      "Turkey and cheese roll-ups with fruit, cucumbers, and gluten-free crackers.",
-      "Roll turkey slices around cheese. Serve with sliced cucumbers, grapes cut appropriately for children, and crackers.",
-      c("1|lb|deli turkey (certified GF)|Meat & Seafood", "8|slice|cheddar cheese|Dairy", "2|count|cucumbers|Produce", "2|cup|grapes|Produce", "8|oz|gluten-free crackers|Pantry"),
-      meal_type = "Lunch", calories = 420, protein_g = 30, fiber_g = 4
-    ),
-    make_recipe(
-      "lunch_chicken_rice", "Chicken Veggie Rice Bowls", "Chicken", 20,
-      "Quick rice bowls with chicken, vegetables, and a mild tamari drizzle.",
-      "Warm rice, chicken, and vegetables. Divide among bowls and drizzle lightly with tamari and sesame oil.",
-      c("3|cup|cooked chicken|Meat & Seafood", "4|cup|cooked white rice|Pantry", "3|cup|frozen mixed vegetables|Frozen", "2|tbsp|tamari (certified GF)|Pantry", "1|tbsp|sesame oil|Pantry"),
-      meal_type = "Lunch", calories = 480, protein_g = 32, fiber_g = 5
-    ),
-    make_recipe(
-      "lunch_tuna_potato", "Tuna Potato Salad Bowls", "Fish", 20,
-      "A creamy tuna and potato bowl with peas and cucumbers.",
-      "Microwave or boil potatoes until tender. Mix tuna, yogurt, mustard, and peas. Serve over potatoes with sliced cucumber.",
-      c("3|can|tuna|Pantry", "1.5|lb|baby potatoes|Produce", "1|cup|plain Greek yogurt|Dairy", "1|cup|frozen peas|Frozen", "1|count|cucumber|Produce", "1|tbsp|Dijon mustard (certified GF)|Pantry"),
-      meal_type = "Lunch", calories = 390, protein_g = 34, fiber_g = 6
-    ),
-    make_recipe(
-      "lunch_bean_quesadillas", "Lunchbox Bean Quesadillas", "Meatless", 15,
-      "Fast black bean and cheese quesadillas with tomatoes and avocado.",
-      "Mash beans and spread on tortillas. Add cheese, fold, and cook in a lightly oiled skillet. Cut into wedges and serve with tomato and avocado.",
-      c("8|count|corn tortillas (certified GF)|Bakery", "1|can|black beans|Pantry", "1.5|cup|shredded cheddar cheese|Dairy", "2|count|tomatoes|Produce", "1|count|avocado|Produce", "1|tbsp|olive oil|Pantry"),
-      meal_type = "Lunch", calories = 460, protein_g = 20, fiber_g = 12
-    ),
-    make_recipe(
-      "lunch_hummus_boxes", "Hummus Snack Boxes", "Meatless", 10,
-      "Colorful no-cook boxes with hummus, eggs, vegetables, fruit, and crackers.",
-      "Divide hummus into containers. Add halved eggs, sliced vegetables, berries, and gluten-free crackers.",
-      c("2|cup|hummus (certified GF)|Dairy", "8|count|eggs|Dairy", "4|count|carrots|Produce", "2|count|cucumbers|Produce", "2|cup|mixed berries|Produce", "8|oz|gluten-free crackers|Pantry"),
-      meal_type = "Lunch", calories = 440, protein_g = 22, fiber_g = 10
     ),
     make_recipe(
       "lunch_egg_salad", "Egg Salad Cracker Plates", "Meatless", 15,
