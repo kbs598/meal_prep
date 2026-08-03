@@ -493,6 +493,7 @@ body::before {
   body * { visibility: hidden !important; }
   #print_week_plan, #print_week_plan * { visibility: visible !important; }
   #print_week_plan { display: block !important; position: absolute; inset: 0; width: 100%; padding: 0; }
+  #print_week_plan .print-week-plan { display: block !important; }
   .print-week-plan h1 { margin: 0 0 4px; font-size: 25px; }
   .print-subtitle { margin: 0 0 15px; color: #536079; }
   .print-plan-table { width: 100%; border-collapse: collapse; table-layout: fixed; }

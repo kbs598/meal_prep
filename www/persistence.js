@@ -314,7 +314,81 @@
     }
   });
 
+  var lastDirectPrintAt = 0;
+
+  function printDocumentHtml(planMarkup) {
+    return '<!doctype html>' +
+      '<html><head><meta charset="utf-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+      '<title>Weeknight Five - Weekly Meal Plan</title>' +
+      '<style>' +
+      '@page{size:landscape;margin:.38in}' +
+      '*{box-sizing:border-box}' +
+      'html,body{margin:0;background:#fff;color:#1e283a;font-family:Segoe UI,Arial,sans-serif}' +
+      'body{padding:20px}' +
+      '.print-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 auto 18px;max-width:1100px;padding:12px 14px;border-radius:12px;background:#f1f5ff;color:#3f4d67}' +
+      '.print-toolbar button{border:0;border-radius:10px;padding:10px 18px;background:#6957db;color:#fff;font:700 15px Segoe UI,Arial,sans-serif;cursor:pointer}' +
+      '.print-week-plan{display:block!important;max-width:1100px;margin:0 auto}' +
+      '.print-week-plan h1{margin:0 0 4px;font-size:24px;line-height:1.2}' +
+      '.print-subtitle{margin:0 0 13px;color:#536079;font-size:12px}' +
+      '.print-plan-table{width:100%;border-collapse:collapse;table-layout:fixed}' +
+      '.print-plan-table th,.print-plan-table td{border:1px solid #aeb6c5;padding:8px;text-align:left;vertical-align:top;font-size:11px;line-height:1.25}' +
+      '.print-plan-table thead{display:table-header-group}' +
+      '.print-plan-table thead th{background:#eaf0ff}' +
+      '.print-plan-table tbody th{width:68px;background:#fff5cc}' +
+      '.print-plan-table tr{break-inside:avoid;page-break-inside:avoid}' +
+      '.print-plan-table strong,.print-plan-table small{display:block}' +
+      '.print-plan-table small{margin-top:4px;color:#536079;font-size:9px;line-height:1.25}' +
+      '.print-footer-note{margin-top:10px;color:#536079;font-size:9px}' +
+      '@media print{body{padding:0}.print-toolbar{display:none!important}.print-week-plan{max-width:none}.print-plan-table thead th,.print-plan-table tbody th{-webkit-print-color-adjust:exact;print-color-adjust:exact}}' +
+      '</style></head><body>' +
+      '<div class="print-toolbar"><strong>Your fridge-ready week is ready.</strong><button id="print_again" type="button">Print this plan</button></div>' +
+      planMarkup +
+      '</body></html>';
+  }
+
+  function openWeeklyPrintView() {
+    var output = document.getElementById("print_week_plan");
+    var plan = output && output.querySelector(".print-week-plan");
+    if (!plan) {
+      window.Shiny.setInputValue("print_plan_error", Date.now(), { priority: "event" });
+      return false;
+    }
+
+    var printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      window.Shiny.setInputValue("print_popup_blocked", Date.now(), { priority: "event" });
+      return false;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(printDocumentHtml(plan.outerHTML));
+    printWindow.document.close();
+    var printAgain = printWindow.document.getElementById("print_again");
+    if (printAgain) {
+      printAgain.addEventListener("click", function () {
+        printWindow.focus();
+        printWindow.print();
+      });
+    }
+    window.setTimeout(function () {
+      printWindow.focus();
+      printWindow.print();
+    }, 350);
+    return true;
+  }
+
+  // Opening the print tab directly from the button click keeps it compatible
+  // with browser popup protection, including the Shinylive iframe on GitHub Pages.
+  document.addEventListener("click", function (event) {
+    var target = event.target && event.target.closest ? event.target.closest("#print_week") : null;
+    if (!target) return;
+    lastDirectPrintAt = Date.now();
+    openWeeklyPrintView();
+  }, true);
+
   window.Shiny.addCustomMessageHandler("weeknight-five-print", function (message) {
-    window.setTimeout(function () { window.print(); }, 100);
+    if (Date.now() - lastDirectPrintAt < 15000) return;
+    openWeeklyPrintView();
   });
 })();

@@ -48,10 +48,10 @@ ui <- navbarPage(
   header = tagList(
     tags$head(
       tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
-      tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
+      tags$link(rel = "stylesheet", type = "text/css", href = "styles.css?v=2"),
       tags$script(src = "vendor/supabase.min.js"),
       tags$script(src = "supabase-config.js"),
-      tags$script(src = "persistence.js"),
+      tags$script(src = "persistence.js?v=2"),
       tags$script(src = "supabase-sync.js?v=2")
     ),
     div(
@@ -1294,6 +1294,14 @@ server <- function(input, output, session) {
 
   observeEvent(input$print_week, {
     session$sendCustomMessage("weeknight-five-print", list())
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$print_popup_blocked, {
+    showNotification("Your browser blocked the printable tab. Allow pop-ups for this site, then press Print fridge plan again.", type = "warning", duration = 8)
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$print_plan_error, {
+    showNotification("The weekly plan is still loading. Wait a moment, then press Print fridge plan again.", type = "warning", duration = 6)
   }, ignoreInit = TRUE)
 
   output$print_week_plan <- renderUI({
