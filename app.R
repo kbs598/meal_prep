@@ -213,14 +213,13 @@ ui <- navbarPage(
               tags$p(class = "setting-note", "Choose your local store on each retailer site, then add the food deals you want the planner to use."),
               div(class = "store-link-grid",
                   tags$a(class = "store-link aldi-link", href = "https://www.aldi.us/store/aldi/flyers/weekly", target = "_blank", "ALDI Weekly Ad ↗"),
-                  tags$a(class = "store-link walmart-link", href = "https://www.walmart.com/shop/deals/shop-advertised-deals", target = "_blank", "Walmart Deals ↗"),
                   tags$a(class = "store-link publix-link", href = "https://www.publix.com/savings/bogo", target = "_blank", "Publix BOGOs ↗")))
       ),
       div(
         class = "deal-entry-layout",
         div(class = "content-card deal-form-card",
             tags$h2("Add a food deal"),
-            selectInput("deal_store", "Store", choices = c("ALDI", "Walmart", "Publix BOGO")),
+            selectInput("deal_store", "Store", choices = c("ALDI", "Publix BOGO")),
             selectizeInput("deal_ingredient", "Food or ingredient", choices = all_ingredients,
                            options = list(create = TRUE, placeholder = "Ground turkey, broccoli, salmon...")),
             textInput("deal_offer", "Offer", placeholder = "$2.99/lb, rollback, or buy one get one free"),

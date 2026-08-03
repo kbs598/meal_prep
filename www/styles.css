@@ -315,7 +315,6 @@ body::before {
 .store-link-grid { display: grid; gap: 9px; }
 .store-link { display: block; border-radius: 12px; padding: 11px 14px; color: white !important; font-weight: 800; text-decoration: none !important; }
 .aldi-link { background: #0050aa; }
-.walmart-link { background: #0874d1; }
 .publix-link { background: #3e8a2f; }
 .store-link:hover { filter: brightness(1.07); transform: translateY(-1px); }
 .active-deal-list { display: grid; gap: 10px; margin-bottom: 18px; }

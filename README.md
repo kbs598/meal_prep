@@ -21,7 +21,7 @@ You can also open `run_app.R` and click **Source** after setup. The Desktop copy
 - A landscape print view that fits the complete week on a fridge-friendly page
 - Simple “have it / need it” pantry tracking
 - Regional in-season produce highlights
-- Active ALDI, Walmart, and Publix BOGO deal matching
+- Active ALDI and Publix BOGO deal matching
 - Quantities scaled to 5.4 adult-size portions by default: dinner for two adults, two two-year-olds, one four-year-old, plus two adult lunches
 - Combined, categorized grocery list and CSV download
 - Local settings, recipes, pantry items, deals, and meal-history storage
@@ -46,7 +46,7 @@ The repository includes `.github/workflows/deploy-app.yaml`. Every push to the `
 
 Choose a seasonal region and enter a ZIP code on the **Season & Deals** tab. The seasonal calendar is a general regional guide; exact local harvest timing varies.
 
-Weekly prices and BOGOs depend on the selected store. Use the official ALDI, Walmart, and Publix links in the app to view the correct local ad, then add relevant food offers using the short deal form. Active matching deals are highlighted on meal cards, recipe cards, and grocery items. Expired deals stop appearing automatically.
+Weekly prices and BOGOs depend on the selected store. Use the official ALDI and Publix links in the app to view the correct local ad, then add relevant food offers using the short deal form. Active matching deals are highlighted on meal cards, recipe cards, and grocery items. Expired deals stop appearing automatically.
 
 ## Important gluten-free note
 
