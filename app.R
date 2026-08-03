@@ -27,6 +27,11 @@ all_ingredients <- sort(unique(ingredients$ingredient))
 ingredient_units <- c("count", "lb", "oz", "cup", "tbsp", "tsp", "can", "bag", "package", "slice")
 grocery_categories <- c("Produce", "Meat & Seafood", "Dairy", "Pantry", "Frozen", "Bakery")
 season_regions <- c("Northeast", "Southeast", "Midwest", "Southwest", "West")
+browser_storage_keys <- c(
+  state = "weeknight-five.state.v1",
+  recipes = "weeknight-five.recipes.v1",
+  deals = "weeknight-five.deals.v1"
+)
 
 protein_emoji <- c(
   Chicken = "🐔", Turkey = "🦃", Beef = "🐮", Pork = "🐷",
@@ -40,7 +45,8 @@ ui <- navbarPage(
   header = tagList(
     tags$head(
       tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
-      tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
+      tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
+      tags$script(src = "persistence.js")
     ),
     div(
       class = "gf-banner",
@@ -237,6 +243,19 @@ ui <- navbarPage(
           tags$p(class = "setting-note", "The planner avoids the same protein on neighboring nights whenever possible."),
           div(class = "safety-card", strong("Gluten-free safeguard"), tags$p("Ingredients that commonly hide gluten are labeled “certified GF” in recipes. Continue checking every package because brands and manufacturing practices change.")),
           actionButton("save_settings", "Save settings", class = "btn-rainbow")
+        ),
+        div(
+          class = "content-card settings-wide",
+          tags$h2("Phone data & backup"),
+          tags$p(
+            class = "setting-note",
+            "On GitHub Pages, your pantry, recipes, settings, and deals stay in this browser on this device. Download a backup before clearing browser data or changing phones."
+          ),
+          div(
+            class = "backup-actions",
+            downloadButton("download_backup", "Download my backup", class = "btn-rainbow"),
+            fileInput("restore_backup", "Restore a Weeknight Five backup", accept = ".rds")
+          )
         )
       )
     )
@@ -254,6 +273,7 @@ server <- function(input, output, session) {
     ingredient_row_count = 4,
     plan = NULL
   )
+  restore_pending <- reactiveVal(NULL)
 
   current_portions <- reactive({
     family_portions(
@@ -266,22 +286,142 @@ server <- function(input, output, session) {
     )
   })
 
-  persist <- function() {
-    save_state(list(
+  send_browser_data <- function(key, value) {
+    session$sendCustomMessage(
+      "weeknight-five-save",
+      list(key = unname(key), value = encode_browser_data(value))
+    )
+  }
+
+  saved_state_data <- function() {
+    list(
       pantry_items = state$pantry_items,
       recent_ids = state$recent_ids,
       settings = state$settings
-    ), saved_state_path)
+    )
   }
 
-  persist_custom_recipes <- function() {
+  saved_custom_data <- function() {
     custom_recipes <- state$recipes[state$recipes$source == "My recipe", , drop = FALSE]
     custom_ids <- custom_recipes$recipe_id
     custom_ingredients <- state$ingredients[state$ingredients$recipe_id %in% custom_ids, , drop = FALSE]
-    save_custom_recipe_data(list(recipes = custom_recipes, ingredients = custom_ingredients), saved_recipe_path)
+    list(recipes = custom_recipes, ingredients = custom_ingredients)
   }
 
-  persist_deals <- function() save_deals(state$deals, saved_deals_path)
+  persist <- function() {
+    value <- saved_state_data()
+    save_state(value, saved_state_path)
+    send_browser_data(browser_storage_keys[["state"]], value)
+  }
+
+  persist_custom_recipes <- function() {
+    value <- saved_custom_data()
+    save_custom_recipe_data(value, saved_recipe_path)
+    send_browser_data(browser_storage_keys[["recipes"]], value)
+  }
+
+  persist_deals <- function() {
+    save_deals(state$deals, saved_deals_path)
+    send_browser_data(browser_storage_keys[["deals"]], state$deals)
+  }
+
+  refresh_recipe_inputs <- function() {
+    all_items <- sort(unique(state$ingredients$ingredient))
+    updateSelectizeInput(session, "pantry_items", choices = all_items,
+                         selected = state$pantry_items, server = TRUE)
+    updateSelectizeInput(session, "deal_ingredient", choices = all_items, server = TRUE)
+    custom <- state$recipes[state$recipes$source == "My recipe", , drop = FALSE]
+    updateSelectInput(session, "delete_recipe_id", choices = setNames(custom$recipe_id, custom$recipe_name))
+  }
+
+  apply_saved_state <- function(saved) {
+    if (!is.list(saved)) return(FALSE)
+    merged <- utils::modifyList(default_state(), saved)
+    state$pantry_items <- as.character(merged$pantry_items %||% character())
+    state$recent_ids <- as.character(merged$recent_ids %||% character())
+    state$settings <- merged$settings
+    updateSelectizeInput(session, "pantry_items", selected = state$pantry_items)
+    updateCheckboxGroupInput(session, "proteins", selected = state$settings$proteins)
+    updateNumericInput(session, "adults", value = state$settings$adults)
+    updateNumericInput(session, "toddlers", value = state$settings$toddlers)
+    updateNumericInput(session, "young_children", value = state$settings$young_children)
+    updateNumericInput(session, "lunch_servings", value = state$settings$lunch_servings)
+    updateSelectInput(session, "season_region", selected = state$settings$season_region)
+    updateTextInput(session, "zip_code", value = state$settings$zip_code)
+    state$plan <- NULL
+    TRUE
+  }
+
+  apply_custom_data <- function(saved) {
+    if (!is.list(saved) || !is.data.frame(saved$recipes) || !is.data.frame(saved$ingredients)) return(FALSE)
+    required_recipe_columns <- names(empty_custom_recipe_data()$recipes)
+    required_ingredient_columns <- names(empty_custom_recipe_data()$ingredients)
+    if (!all(required_recipe_columns %in% names(saved$recipes)) ||
+        !all(required_ingredient_columns %in% names(saved$ingredients))) return(FALSE)
+    state$recipes <- rbind(builtin_data$recipes, saved$recipes[, required_recipe_columns, drop = FALSE])
+    state$ingredients <- rbind(builtin_data$ingredients, saved$ingredients[, required_ingredient_columns, drop = FALSE])
+    state$recent_ids <- intersect(state$recent_ids, state$recipes$recipe_id)
+    refresh_recipe_inputs()
+    state$plan <- NULL
+    TRUE
+  }
+
+  apply_deals <- function(saved) {
+    if (!is.data.frame(saved) || !all(names(empty_deals()) %in% names(saved))) return(FALSE)
+    state$deals <- saved[, names(empty_deals()), drop = FALSE]
+    state$deals$start_date <- as.Date(state$deals$start_date)
+    state$deals$end_date <- as.Date(state$deals$end_date)
+    updateSelectInput(session, "delete_deal_id",
+                      choices = setNames(state$deals$deal_id, paste(state$deals$store, state$deals$ingredient, sep = " — ")))
+    TRUE
+  }
+
+  sync_saved_inputs <- function() {
+    refresh_recipe_inputs()
+    updateCheckboxGroupInput(session, "proteins", selected = state$settings$proteins)
+    updateNumericInput(session, "adults", value = state$settings$adults)
+    updateNumericInput(session, "toddlers", value = state$settings$toddlers)
+    updateNumericInput(session, "young_children", value = state$settings$young_children)
+    updateNumericInput(session, "lunch_servings", value = state$settings$lunch_servings)
+    updateSelectInput(session, "season_region", selected = state$settings$season_region)
+    updateTextInput(session, "zip_code", value = state$settings$zip_code)
+    updateSelectInput(session, "delete_deal_id",
+                      choices = setNames(state$deals$deal_id, paste(state$deals$store, state$deals$ingredient, sep = " — ")))
+  }
+
+  observeEvent(input$browser_state, {
+    saved <- decode_browser_data(input$browser_state)
+    if (is.null(saved)) {
+      session$sendCustomMessage("weeknight-five-storage-status", "state-decode-failed")
+    } else if (apply_saved_state(saved)) {
+      session$sendCustomMessage("weeknight-five-storage-status", "state-restored")
+    }
+  }, ignoreInit = FALSE)
+
+  observeEvent(input$browser_recipes, {
+    saved <- decode_browser_data(input$browser_recipes)
+    if (!is.null(saved)) apply_custom_data(saved)
+  }, ignoreInit = FALSE)
+
+  observeEvent(input$browser_deals, {
+    saved <- decode_browser_data(input$browser_deals)
+    if (!is.null(saved)) apply_deals(saved)
+  }, ignoreInit = FALSE)
+
+  observeEvent(input$browser_storage_ready, {
+    if (!nzchar(input$browser_state %||% "")) send_browser_data(browser_storage_keys[["state"]], saved_state_data())
+    if (!nzchar(input$browser_recipes %||% "")) send_browser_data(browser_storage_keys[["recipes"]], saved_custom_data())
+    if (!nzchar(input$browser_deals %||% "")) send_browser_data(browser_storage_keys[["deals"]], state$deals)
+    session$onFlushed(sync_saved_inputs, once = TRUE)
+  }, ignoreInit = FALSE)
+
+  observeEvent(input$browser_ui_ready, {
+    sync_saved_inputs()
+  }, ignoreInit = FALSE)
+
+  observeEvent(input$browser_storage_error, {
+    showNotification("This browser could not save your changes. Download a backup from Settings.", type = "error", duration = 8)
+  }, ignoreInit = TRUE)
 
   current_region <- reactive(input$season_region %||% state$settings$season_region %||% "Southeast")
 
@@ -700,6 +840,65 @@ server <- function(input, output, session) {
       )
     }))
   })
+
+  output$download_backup <- downloadHandler(
+    filename = function() paste0("weeknight-five-backup-", Sys.Date(), ".rds"),
+    content = function(file) {
+      saveRDS(
+        list(
+          format_version = 1L,
+          created_at = as.character(Sys.time()),
+          state = saved_state_data(),
+          custom_data = saved_custom_data(),
+          deals = state$deals
+        ),
+        file,
+        version = 2
+      )
+    }
+  )
+
+  observeEvent(input$restore_backup, {
+    upload <- input$restore_backup
+    req(upload$datapath)
+    backup <- tryCatch(readRDS(upload$datapath), error = function(e) NULL)
+    valid <- is.list(backup) && is.list(backup$state) && is.list(backup$custom_data) &&
+      is.data.frame(backup$custom_data$recipes) && is.data.frame(backup$custom_data$ingredients) &&
+      is.data.frame(backup$deals)
+    if (!valid) {
+      restore_pending(NULL)
+      showNotification("That file is not a valid Weeknight Five backup.", type = "error", duration = 7)
+      return()
+    }
+    restore_pending(backup)
+    showModal(modalDialog(
+      title = "Restore this backup?",
+      tags$p("This will replace the pantry, settings, meal history, personal recipes, and deals currently saved in this browser."),
+      footer = tagList(
+        modalButton("Cancel"),
+        actionButton("confirm_restore", "Restore backup", class = "btn-rainbow")
+      ),
+      easyClose = TRUE
+    ))
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$confirm_restore, {
+    backup <- restore_pending()
+    req(backup)
+    ok <- apply_saved_state(backup$state) &&
+      apply_custom_data(backup$custom_data) &&
+      apply_deals(backup$deals)
+    if (!ok) {
+      showNotification("The backup could not be restored.", type = "error", duration = 7)
+      return()
+    }
+    persist()
+    persist_custom_recipes()
+    persist_deals()
+    restore_pending(NULL)
+    removeModal()
+    showNotification("Your Weeknight Five backup was restored.", type = "message", duration = 6)
+  }, ignoreInit = TRUE)
 
   output$download_grocery <- downloadHandler(
     filename = function() paste0("weeknight-five-grocery-list-", Sys.Date(), ".csv"),

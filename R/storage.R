@@ -46,8 +46,10 @@ load_custom_recipe_data <- function(path) {
 }
 
 save_custom_recipe_data <- function(data, path) {
-  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  saveRDS(data, path)
+  try({
+    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+    saveRDS(data, path)
+  }, silent = TRUE)
   invisible(path)
 }
 
@@ -69,8 +71,10 @@ load_deals <- function(path) {
 }
 
 save_deals <- function(deals, path) {
-  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  saveRDS(deals, path)
+  try({
+    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+    saveRDS(deals, path)
+  }, silent = TRUE)
   invisible(path)
 }
 
@@ -83,7 +87,23 @@ load_state <- function(path) {
 }
 
 save_state <- function(state, path) {
-  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  saveRDS(state, path)
+  try({
+    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+    saveRDS(state, path)
+  }, silent = TRUE)
   invisible(path)
+}
+
+encode_browser_data <- function(value) {
+  base64enc::base64encode(serialize(value, NULL, version = 2))
+}
+
+decode_browser_data <- function(value, fallback = NULL) {
+  if (is.null(value) || !is.character(value) || length(value) != 1L || !nzchar(value)) {
+    return(fallback)
+  }
+  tryCatch(
+    unserialize(base64enc::base64decode(value)),
+    error = function(e) fallback
+  )
 }

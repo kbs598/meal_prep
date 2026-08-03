@@ -21,11 +21,18 @@ You can also open `run_app.R` and click **Source** after setup. The Desktop copy
 - Quantities scaled to 5.4 adult-size portions by default: dinner for two adults, two two-year-olds, one four-year-old, plus two adult lunches
 - Combined, categorized grocery list and CSV download
 - Local settings, recipes, pantry items, deals, and meal-history storage
+- Browser storage and backup/restore controls for the GitHub Pages version
 - Celiac reminders for commonly risky ingredients and cross-contact
 
 ## Family recipes
 
 Use the **My Recipes** tab to enter a recipe without editing R files. Add the recipe details and as many ingredient rows as needed, then save. Personal recipes are stored separately from the built-in library and immediately become eligible for weekly rotation.
+
+On GitHub Pages, personal data is saved only in the current browser on the current device. Use **Settings > Download my backup** before clearing browser data or moving to another phone. Restore that `.rds` file from the same Settings tab.
+
+## Publish with GitHub Pages
+
+The repository includes `.github/workflows/deploy-app.yaml`. Every push to the `main` branch asks GitHub Actions to export the app with Shinylive and publish the static result. In the repository's GitHub settings, choose **Pages > Source > GitHub Actions**. The live address will be `https://kbs598.github.io/meal_prep/`.
 
 ## Seasonal food and store deals
 
@@ -46,4 +53,3 @@ The recipes are designed to be gluten-free as written, but ingredient formulatio
 - `R/seasonality.R` — regional produce seasons and active-deal matching
 - `www/styles.css` — colors and visual design
 - `tests/` — automated planner and interactive-session checks
-

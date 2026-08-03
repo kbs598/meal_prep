@@ -313,11 +313,15 @@ body::before {
 .grocery-category input:checked + span { color: #9aa0af; text-decoration: line-through; }
 
 .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.settings-wide { grid-column: 1 / -1; }
 .settings-grid .form-group { margin-bottom: 18px; }
 .settings-grid .form-control { max-width: 160px; min-height: 42px; }
 .setting-note { color: var(--muted); font-size: 14px; line-height: 1.5; }
 .safety-card { background: #ecfff7; border: 1px solid #c8efde; border-radius: 14px; padding: 15px; color: #266b53; margin: 18px 0; }
 .safety-card p { margin: 5px 0 0; }
+.backup-actions { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; margin-top: 18px; }
+.backup-actions .form-group { margin: 0; min-width: min(100%, 300px); }
+.backup-actions .shiny-file-input-progress { margin-bottom: 0; }
 
 .modal-content { border: 0; border-radius: 22px; overflow: hidden; box-shadow: 0 25px 70px rgba(38,50,75,.25); }
 .modal-header { background: linear-gradient(100deg, #fff0f4, #fff9dc, #effff7, #f0f6ff, #f5f0ff); border: 0; }
@@ -362,6 +366,9 @@ body::before {
   .meal-actions { grid-column: auto; }
   .heading-with-action { align-items: flex-start; flex-direction: column; }
   .filter-bar, .settings-grid { grid-template-columns: 1fr; }
+  .settings-wide { grid-column: auto; }
+  .backup-actions { display: block; }
+  .backup-actions .form-group { margin-top: 18px; }
   .form-row.two-up, .season-deal-grid, .season-settings > div { grid-template-columns: 1fr; }
   .season-settings { align-items: stretch; flex-direction: column; }
   .season-settings > div, .season-settings .btn { width: 100%; }
