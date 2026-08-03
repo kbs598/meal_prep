@@ -313,6 +313,10 @@ body::before {
 .meal-actions { display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end; max-width: 220px; }
 .card-button { background: #fff; border: 1px solid #ddddea; color: #626c83; padding: 7px 11px; }
 .card-button.locked { background: #fff2bf; border-color: #f5d86a; color: #805f0b; }
+.meal-choice-row { margin-top: 10px; max-width: 360px; }
+.meal-choice-row label { font-size: 12px; font-weight: 750; color: var(--muted); margin-bottom: 3px; }
+.meal-card.leftover-card { --accent: #b7bccb; background: #f7f7fb; }
+.leftover-card .protein-icon { font-size: 34px; }
 
 .page-heading { margin-bottom: 24px; }
 .heading-with-action { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
@@ -338,6 +342,8 @@ body::before {
 .filter-bar { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 24px; align-items: end; margin-bottom: 22px; padding: 18px 22px 10px; }
 .recipe-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 .recipe-card { --accent: var(--blue); background: white; border: 1px solid #ebeaf3; border-top: 6px solid var(--accent); border-radius: 18px; padding: 20px; box-shadow: 0 8px 24px rgba(55,65,112,.08); }
+.recipe-card.clickable-card { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+.recipe-card.clickable-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(55,65,112,.14); }
 .recipe-card-top { display: flex; justify-content: space-between; align-items: center; }
 .recipe-card h3 { font-size: 19px; font-weight: 800; margin: 14px 0 7px; }
 .recipe-card p { color: var(--muted); min-height: 64px; line-height: 1.45; }

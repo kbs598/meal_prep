@@ -339,6 +339,14 @@ server <- function(input, output, session) {
     )
   })
 
+  dinner_meal_choices <- reactive({
+    recs <- state$recipes[state$recipes$meal_type == "Dinner", , drop = FALSE]
+    recs <- recs[order(recs$recipe_name), , drop = FALSE]
+    choices <- c("🍽️ Leftovers / no meal planned" = LEFTOVER_ID)
+    if (nrow(recs)) choices <- c(choices, setNames(recs$recipe_id, recs$recipe_name))
+    choices
+  })
+
   current_household_portions <- reactive({
     household_portions(
       adults = input$adults %||% state$settings$adults,
@@ -1165,6 +1173,18 @@ server <- function(input, output, session) {
     })
   }
 
+  for (i in seq_len(5)) {
+    local({
+      position <- i
+      observeEvent(input[[paste0("meal_choice_", position)]], {
+        req(state$plan)
+        new_id <- input[[paste0("meal_choice_", position)]]
+        if (is.null(new_id) || identical(new_id, state$plan$recipe_id[position])) return()
+        state$plan$recipe_id[position] <- new_id
+      }, ignoreInit = TRUE)
+    })
+  }
+
   for (meal_type in c("Breakfast", "Lunch")) {
     local({
       this_meal_type <- meal_type
@@ -1207,23 +1227,52 @@ server <- function(input, output, session) {
 
   output$plan_summary <- renderUI({
     req(state$plan)
+    leftover_count <- sum(state$plan$recipe_id == LEFTOVER_ID)
     chosen <- state$recipes[match(state$plan$recipe_id, state$recipes$recipe_id), , drop = FALSE]
-    quick_count <- sum(chosen$minutes <= 30)
-    pantry_rates <- vapply(chosen$recipe_id, pantry_match, numeric(1), state$ingredients, state$pantry_items)
-    sale_count <- sum(vapply(chosen$recipe_id, function(id) nrow(recipe_deals(id)) > 0, logical(1)))
+    chosen <- chosen[!is.na(chosen$recipe_id), , drop = FALSE]
+    quick_count <- if (nrow(chosen)) sum(chosen$minutes <= 30) else 0
+    pantry_rates <- if (nrow(chosen)) vapply(chosen$recipe_id, pantry_match, numeric(1), state$ingredients, state$pantry_items) else numeric(0)
+    sale_count <- if (nrow(chosen)) sum(vapply(chosen$recipe_id, function(id) nrow(recipe_deals(id)) > 0, logical(1))) else 0
     div(
       class = "summary-strip",
       div(class = "summary-item", strong(length(unique(chosen$protein))), span("protein groups")),
       div(class = "summary-item", strong(quick_count), span("quick dinners")),
-      div(class = "summary-item", strong(sprintf("%d%%", round(mean(pantry_rates) * 100))), span("average pantry match")),
-      div(class = "summary-item", strong(sale_count), span("dinners with deals"))
+      div(class = "summary-item", strong(sprintf("%d%%", if (length(pantry_rates)) round(mean(pantry_rates) * 100) else 0)), span("average pantry match")),
+      div(class = "summary-item", strong(sale_count), span("dinners with deals")),
+      div(class = "summary-item", strong(leftover_count), span("leftover nights"))
     )
   })
 
   output$meal_cards <- renderUI({
     req(state$plan)
     cards <- lapply(seq_len(nrow(state$plan)), function(i) {
-      item <- state$recipes[state$recipes$recipe_id == state$plan$recipe_id[i], , drop = FALSE]
+      recipe_id <- state$plan$recipe_id[i]
+      is_leftover <- identical(recipe_id, LEFTOVER_ID)
+      locked <- isTRUE(state$plan$locked[i])
+      choice_row <- div(
+        class = "meal-choice-row",
+        tags$label("Choose this day's meal"),
+        selectInput(paste0("meal_choice_", i), NULL, choices = dinner_meal_choices(), selected = recipe_id, width = "100%")
+      )
+      if (is_leftover) {
+        return(div(
+          class = "meal-card leftover-card",
+          div(class = "day-pill", state$plan$day[i]),
+          div(class = "protein-icon", "🍽️"),
+          div(
+            class = "meal-main",
+            tags$h2("Leftovers / no meal planned"),
+            tags$p("No new dinner needed tonight."),
+            choice_row
+          ),
+          div(
+            class = "meal-actions",
+            actionButton(paste0("swap_", i), "Suggest a meal", class = "card-button", disabled = if (locked) "disabled" else NULL),
+            actionButton(paste0("lock_", i), if (locked) "🔒 Locked" else "🔓 Lock", class = if (locked) "card-button locked" else "card-button")
+          )
+        ))
+      }
+      item <- state$recipes[state$recipes$recipe_id == recipe_id, , drop = FALSE]
       seasonal <- recipe_seasonal(item$recipe_id)
       sales <- recipe_deals(item$recipe_id)
       locked <- isTRUE(state$plan$locked[i])
@@ -1241,7 +1290,8 @@ server <- function(input, output, session) {
               if (nrow(sales)) span(class = "sale-badge", paste("🏷️", nrow(sales), "deal match"))),
           tags$h2(item$recipe_name),
           tags$p(item$description),
-          div(class = "reason-line", if (nrow(sales)) paste("On sale at", paste(unique(sales$store), collapse = " + ")) else selection_reason(item$recipe_id, state$recipes, state$ingredients, state$pantry_items))
+          div(class = "reason-line", if (nrow(sales)) paste("On sale at", paste(unique(sales$store), collapse = " + ")) else selection_reason(item$recipe_id, state$recipes, state$ingredients, state$pantry_items)),
+          choice_row
         ),
         div(
           class = "meal-actions",
@@ -1309,6 +1359,7 @@ server <- function(input, output, session) {
     include_breakfast <- isTRUE(state$settings$plan_breakfast) && !is.null(state$breakfast_plan)
     include_lunch <- isTRUE(state$settings$plan_lunch) && !is.null(state$lunch_plan)
     print_cell <- function(plan, i) {
+      if (identical(plan$recipe_id[i], LEFTOVER_ID)) return(tags$td(tags$strong("Leftovers"), tags$small("No new meal planned")))
       item <- state$recipes[state$recipes$recipe_id == plan$recipe_id[i], , drop = FALSE]
       tags$td(
         tags$strong(item$recipe_name),
@@ -1391,7 +1442,8 @@ server <- function(input, output, session) {
       seasonal <- recipe_seasonal(item$recipe_id)
       sales <- recipe_deals(item$recipe_id)
       div(
-        class = paste("recipe-card", paste0("accent-", tolower(item$protein))),
+        class = paste("recipe-card clickable-card", paste0("accent-", tolower(item$protein))),
+        onclick = sprintf("Shiny.setInputValue('view_gallery_recipe', '%s', {priority: 'event'})", item$recipe_id),
         div(class = "recipe-card-top", span(class = "protein-icon small", unname(protein_emoji[item$protein])), span(class = "protein-tag", item$protein)),
         tags$h3(item$recipe_name),
         tags$p(item$description),
@@ -1403,6 +1455,14 @@ server <- function(input, output, session) {
       )
     }))
   })
+
+  observeEvent(input$view_gallery_recipe, {
+    id <- input$view_gallery_recipe
+    recipe <- state$recipes[state$recipes$recipe_id == id, , drop = FALSE]
+    if (!nrow(recipe)) return()
+    portions <- if (identical(recipe$meal_type, "Dinner")) current_portions() else current_household_portions()
+    show_recipe_details(id, portions)
+  }, ignoreInit = TRUE)
 
   current_grocery <- reactive({
     req(state$plan)

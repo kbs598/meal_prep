@@ -1,3 +1,5 @@
+LEFTOVER_ID <- "LEFTOVERS"
+
 family_portions <- function(adults = 2, toddlers = 2, young_children = 1,
                             toddler_weight = 0.4, child_weight = 0.6,
                             lunch_servings = 2) {
@@ -55,7 +57,8 @@ generate_meal_plan <- function(recipes, ingredients, proteins, pantry_items = ch
     stringsAsFactors = FALSE
   )
   if (!is.null(locked_plan) && nrow(locked_plan) == n) {
-    keep <- locked_plan$locked & locked_plan$recipe_id %in% candidates$recipe_id
+    keep <- locked_plan$locked &
+      (locked_plan$recipe_id %in% candidates$recipe_id | locked_plan$recipe_id == LEFTOVER_ID)
     plan$recipe_id[keep] <- locked_plan$recipe_id[keep]
     plan$locked[keep] <- TRUE
   }
@@ -103,6 +106,11 @@ swap_meal <- function(plan, position, recipes, ingredients, proteins,
 }
 
 grocery_list <- function(plan, recipes, ingredients, portions, pantry_items = character()) {
+  plan <- plan[plan$recipe_id %in% recipes$recipe_id, , drop = FALSE]
+  if (!nrow(plan)) {
+    return(data.frame(category = character(), ingredient = character(), unit = character(),
+                      quantity = numeric(), stringsAsFactors = FALSE))
+  }
   selected <- merge(plan[c("day", "recipe_id")], recipes[c("recipe_id", "base_servings")],
                     by = "recipe_id", all.x = TRUE)
   rows <- merge(selected, ingredients, by = "recipe_id", all.x = TRUE)
