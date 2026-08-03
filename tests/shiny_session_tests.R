@@ -57,6 +57,7 @@ shiny::testServer(server, {
   stopifnot(!is.null(output$print_week_plan))
   stopifnot(!is.null(output$recipe_gallery))
   stopifnot(!is.null(output$grocery_list_ui))
+  stopifnot(!is.null(output$account_ui))
 
   session$setInputs(
     custom_name = "Test Family Chicken",
@@ -83,6 +84,29 @@ shiny::testServer(server, {
   stopifnot(test_recipe$meal_type == "Lunch")
   stopifnot(test_recipe$calories == 420)
   stopifnot(file.exists(saved_recipe_path))
+
+  session$setInputs(supabase_auth = list(
+    status = "signed_in", configured = TRUE, email = "cook@example.com",
+    user_id = "user-1", family_id = "family-1", role = "owner",
+    needs_password = FALSE, message = "Connected"
+  ))
+  session$flushReact()
+  stopifnot(identical(state$cloud_auth$status, "signed_in"))
+  stopifnot(identical(state$cloud_auth$family_id, "family-1"))
+  stopifnot(!is.null(output$cloud_status_bar))
+
+  cloud_recipe <- single_custom_recipe_data(
+    test_recipe$recipe_id,
+    state$recipes,
+    state$ingredients
+  )
+  session$setInputs(supabase_recipe_sync = list(
+    payloads = list(encode_browser_data(cloud_recipe)),
+    recipes_empty = FALSE,
+    no_family = FALSE
+  ))
+  session$flushReact()
+  stopifnot(any(state$recipes$recipe_name == "Test Family Chicken"))
 
   session$setInputs(
     deal_store = "ALDI",

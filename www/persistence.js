@@ -56,6 +56,7 @@
     try {
       window.localStorage.setItem(message.key, message.value);
       document.documentElement.setAttribute("data-weeknight-storage-saved", message.key);
+      window.dispatchEvent(new CustomEvent("weeknight-five-local-save", { detail: message }));
     } catch (error) {
       window.Shiny.setInputValue("browser_storage_error", Date.now(), { priority: "event" });
     }

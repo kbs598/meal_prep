@@ -12,6 +12,107 @@
   --shadow: 0 12px 35px rgba(55, 65, 112, 0.12);
 }
 
+.cloud-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 34px;
+  padding: 0.42rem 1rem;
+  border-bottom: 1px solid rgba(31, 41, 55, 0.08);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.cloud-online {
+  color: #126341;
+  background: #e9fff4;
+}
+
+.cloud-offline {
+  color: #5d5470;
+  background: #f6f1ff;
+}
+
+.cloud-warning {
+  color: #805513;
+  background: #fff6d8;
+}
+
+.cloud-account-card {
+  border-top: 7px solid #50c9ce;
+  background: linear-gradient(135deg, #ffffff 0%, #f4fffd 55%, #fff8e9 100%);
+}
+
+.cloud-account-card h2 {
+  margin-top: 0;
+}
+
+.account-form {
+  max-width: 580px;
+}
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+}
+
+.cloud-account-summary {
+  padding: 0.85rem 1rem;
+  margin: 0.75rem 0 1rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(80, 201, 206, 0.3);
+}
+
+.cloud-account-summary p {
+  margin: 0.35rem 0 0;
+}
+
+.cloud-role-badge {
+  display: inline-block;
+  margin-left: 0.65rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  color: #5b3b00;
+  background: #ffe69a;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.cloud-account-message,
+.cloud-password-callout {
+  padding: 0.8rem 1rem;
+  border-radius: 14px;
+  background: #fff6d8;
+  color: #624713;
+}
+
+.cloud-message-error {
+  color: #7c2630;
+  background: #fff0f1;
+}
+
+.cloud-password-callout p {
+  margin: 0.25rem 0 0;
+}
+
+@media (max-width: 640px) {
+  .cloud-status-bar {
+    justify-content: flex-start;
+    font-size: 0.8rem;
+  }
+
+  .account-actions .btn,
+  .account-actions .shiny-download-link {
+    width: 100%;
+  }
+}
+
 html, body {
   background: var(--cloud);
   color: var(--ink);

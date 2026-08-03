@@ -12,6 +12,7 @@ source(file.path(app_dir, "R", "recipes.R"), local = TRUE)
 source(file.path(app_dir, "R", "expanded_recipes.R"), local = TRUE)
 source(file.path(app_dir, "R", "planner.R"), local = TRUE)
 source(file.path(app_dir, "R", "storage.R"), local = TRUE)
+source(file.path(app_dir, "R", "supabase.R"), local = TRUE)
 source(file.path(app_dir, "R", "seasonality.R"), local = TRUE)
 
 builtin_data <- combined_builtin_recipe_data()
@@ -48,7 +49,10 @@ ui <- navbarPage(
     tags$head(
       tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
       tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
-      tags$script(src = "persistence.js")
+      tags$script(src = "vendor/supabase.min.js"),
+      tags$script(src = "supabase-config.js"),
+      tags$script(src = "persistence.js"),
+      tags$script(src = "supabase-sync.js?v=2")
     ),
     div(
       class = "gf-banner",
@@ -57,7 +61,8 @@ ui <- navbarPage(
         strong("Celiac-aware planning"),
         span(" All starter recipes are gluten-free as written. Always verify labels, shared equipment, and cross-contact risks.")
       )
-    )
+    ),
+    uiOutput("cloud_status_bar")
   ),
 
   tabPanel(
@@ -179,10 +184,10 @@ ui <- navbarPage(
         ),
         div(
           class = "content-card my-recipes-card",
-          tags$h2("Your saved recipes"),
+          tags$h2("Family recipes"),
           uiOutput("custom_recipe_summary"),
           hr(),
-          selectInput("delete_recipe_id", "Remove a saved recipe", choices = setNames(custom_data$recipes$recipe_id, custom_data$recipes$recipe_name)),
+          selectInput("delete_recipe_id", "Remove a family recipe", choices = setNames(custom_data$recipes$recipe_id, custom_data$recipes$recipe_name)),
           actionButton("delete_custom_recipe", "Delete selected recipe", class = "btn-danger-soft")
         )
       )
@@ -258,6 +263,10 @@ ui <- navbarPage(
       div(
         class = "settings-grid",
         div(
+          class = "content-card settings-wide cloud-account-card",
+          uiOutput("account_ui")
+        ),
+        div(
           class = "content-card",
           tags$h2("Household portions"),
           numericInput("adults", "Adults", value = initial_state$settings$adults, min = 0, max = 10),
@@ -287,7 +296,7 @@ ui <- navbarPage(
           tags$h2("Phone data & backup"),
           tags$p(
             class = "setting-note",
-            "On GitHub Pages, your pantry, recipes, settings, and deals stay in this browser on this device. Download a backup before clearing browser data or changing phones."
+            "This device keeps a browser backup. When you are signed in, personal planner data also syncs privately to Supabase and family recipes sync to your shared family collection. Downloadable backups still give you an extra copy."
           ),
           div(
             class = "backup-actions",
@@ -310,6 +319,9 @@ server <- function(input, output, session) {
     deals = initial_deals,
     ingredient_row_count = 4,
     import_status = NULL,
+    cloud_auth = normalize_cloud_auth(NULL),
+    cloud_recipes_empty = FALSE,
+    cloud_notice = NULL,
     plan = NULL,
     breakfast_plan = NULL,
     lunch_plan = NULL
@@ -359,6 +371,34 @@ server <- function(input, output, session) {
     custom_ids <- custom_recipes$recipe_id
     custom_ingredients <- ingredients_now[ingredients_now$recipe_id %in% custom_ids, , drop = FALSE]
     list(recipes = custom_recipes, ingredients = custom_ingredients)
+  }
+
+  send_cloud_recipe <- function(recipe_id) {
+    one <- single_custom_recipe_data(
+      recipe_id,
+      isolate(state$recipes),
+      isolate(state$ingredients)
+    )
+    if (!nrow(one$recipes)) return(invisible(FALSE))
+    recipe <- one$recipes[1, , drop = FALSE]
+    session$sendCustomMessage(
+      "weeknight-five-supabase-save-recipe",
+      list(
+        recipe_id = recipe$recipe_id[[1]],
+        recipe_name = recipe$recipe_name[[1]],
+        meal_type = recipe$meal_type[[1]],
+        protein = recipe$protein[[1]],
+        recipe_payload = encode_browser_data(one)
+      )
+    )
+    invisible(TRUE)
+  }
+
+  sync_all_custom_recipes <- function() {
+    ids <- isolate(saved_custom_data()$recipes$recipe_id)
+    if (!length(ids)) return(invisible(FALSE))
+    for (id in ids) send_cloud_recipe(id)
+    invisible(TRUE)
   }
 
   persist <- function() {
@@ -484,6 +524,170 @@ server <- function(input, output, session) {
 
   observeEvent(input$browser_storage_error, {
     showNotification("This browser could not save your changes. Download a backup from Settings.", type = "error", duration = 8)
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$supabase_auth, {
+    state$cloud_auth <- normalize_cloud_auth(input$supabase_auth)
+  }, ignoreInit = FALSE)
+
+  observeEvent(input$supabase_state, {
+    saved <- decode_browser_data(input$supabase_state)
+    if (!is.null(saved) && apply_saved_state(saved)) {
+      save_state(saved_state_data(), saved_state_path)
+      send_browser_data(browser_storage_keys[["state"]], saved_state_data())
+    }
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$supabase_deals, {
+    saved <- decode_browser_data(input$supabase_deals)
+    if (!is.null(saved) && apply_deals(saved)) {
+      save_deals(state$deals, saved_deals_path)
+      send_browser_data(browser_storage_keys[["deals"]], state$deals)
+    }
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$supabase_recipe_sync, {
+    result <- input$supabase_recipe_sync
+    if (!is.list(result) || isTRUE(result$no_family)) return()
+    payloads <- result$payloads %||% list()
+    state$cloud_recipes_empty <- isTRUE(result$recipes_empty)
+    if (!length(payloads)) {
+      if (!nrow(saved_custom_data()$recipes)) {
+        apply_custom_data(empty_custom_recipe_data())
+        persist_custom_recipes()
+      }
+      return()
+    }
+    saved <- combine_cloud_recipe_payloads(payloads)
+    if (apply_custom_data(saved)) persist_custom_recipes()
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$supabase_notice, {
+    notice <- input$supabase_notice
+    if (!is.list(notice)) return()
+    state$cloud_notice <- notice
+    kind <- as.character(notice$kind %||% "message")
+    if (kind == "working") return()
+    notification_type <- if (kind == "error") "error" else if (kind == "warning") "warning" else "message"
+    showNotification(as.character(notice$message %||% "Cloud status updated."), type = notification_type, duration = 6)
+  }, ignoreInit = TRUE)
+
+  output$cloud_status_bar <- renderUI({
+    auth <- state$cloud_auth
+    if (identical(auth$status, "signed_in") && nzchar(auth$family_id)) {
+      div(class = "cloud-status-bar cloud-online", span("☁️"), span(paste("Family sync on ·", auth$email)))
+    } else if (identical(auth$status, "signed_in")) {
+      div(class = "cloud-status-bar cloud-warning", span("☁️"), span("Signed in · family access still needs setup"))
+    } else if (auth$status %in% c("error", "unavailable")) {
+      div(class = "cloud-status-bar cloud-warning", span("☁️"), span("Cloud unavailable · browser backup is active"))
+    } else {
+      div(class = "cloud-status-bar cloud-offline", span("☁️"), span("Family sync off · sign in under Settings"))
+    }
+  })
+
+  output$account_ui <- renderUI({
+    auth <- state$cloud_auth
+    if (identical(auth$status, "starting")) {
+      return(tagList(tags$h2("☁️ Family account"), tags$p(class = "setting-note", auth$message)))
+    }
+    if (auth$status %in% c("unavailable", "error")) {
+      return(tagList(
+        tags$h2("☁️ Family account"),
+        tags$p(class = "cloud-account-message cloud-message-error", auth$message),
+        tags$p(class = "setting-note", "Your on-device browser backup continues to work.")
+      ))
+    }
+    if (!identical(auth$status, "signed_in")) {
+      return(tagList(
+        tags$h2("☁️ Sign in for family sharing"),
+        tags$p(class = "setting-note", "Use the email address that was invited in Supabase. Your family shares recipes; your pantry, plans, settings, and deals stay private to your account."),
+        div(class = "account-form",
+            textInput("account_email", "Email address", placeholder = "you@example.com"),
+            passwordInput("account_password", "Password", placeholder = "Your Supabase password"),
+            div(class = "account-actions",
+                actionButton("account_sign_in", "Sign in", class = "btn-rainbow"),
+                actionButton("account_reset_password", "Email me a password link", class = "btn-soft")))
+      ))
+    }
+
+    family_text <- if (nzchar(auth$family_id)) {
+      paste("Connected as", if (identical(auth$role, "owner")) "family owner" else "family member")
+    } else {
+      "This account has not been added to a family yet. Complete the family setup in Supabase, then press Sync now."
+    }
+    password_controls <- if (isTRUE(auth$needs_password)) {
+      tagList(
+        div(class = "cloud-password-callout", strong("Finish setting your password"), tags$p("Choose the password you will use for this app.")),
+        div(class = "account-form",
+            passwordInput("account_new_password", "New password"),
+            passwordInput("account_confirm_password", "Confirm new password"),
+            actionButton("account_set_password", "Save my password", class = "btn-rainbow"))
+      )
+    }
+    custom_recipe_count <- sum(state$recipes$source == "My recipe")
+    upload_note <- if (isTRUE(state$cloud_recipes_empty) && custom_recipe_count > 0) {
+      tags$p(class = "cloud-account-message", "The family collection is empty, but this browser has recipes. Use “Upload browser recipes” once to move them into the shared collection.")
+    }
+    tagList(
+      tags$h2("☁️ Family account"),
+      div(class = "cloud-account-summary",
+          div(strong(auth$email), span(class = "cloud-role-badge", if (nzchar(auth$role)) auth$role else "awaiting access")),
+          tags$p(family_text)),
+      password_controls,
+      upload_note,
+      div(class = "account-actions",
+          if (nzchar(auth$family_id)) actionButton("account_sync_now", "Sync now", class = "btn-rainbow"),
+          if (nzchar(auth$family_id) && custom_recipe_count > 0) actionButton("account_upload_recipes", "Upload browser recipes", class = "btn-soft"),
+          actionButton("account_sign_out", "Sign out", class = "card-button"))
+    )
+  })
+
+  observeEvent(input$account_sign_in, {
+    email <- trimws(input$account_email %||% "")
+    password <- input$account_password %||% ""
+    if (!grepl("^[^@[:space:]]+@[^@[:space:]]+\\.[^@[:space:]]+$", email) || !nzchar(password)) {
+      showNotification("Enter your email address and password.", type = "error")
+      return()
+    }
+    session$sendCustomMessage("weeknight-five-auth-sign-in", list(email = email, password = password))
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$account_reset_password, {
+    email <- trimws(input$account_email %||% "")
+    if (!grepl("^[^@[:space:]]+@[^@[:space:]]+\\.[^@[:space:]]+$", email)) {
+      showNotification("Enter your email address first.", type = "error")
+      return()
+    }
+    session$sendCustomMessage("weeknight-five-auth-reset", list(email = email))
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$account_set_password, {
+    password <- input$account_new_password %||% ""
+    confirmation <- input$account_confirm_password %||% ""
+    if (nchar(password) < 8) {
+      showNotification("Use a password with at least 8 characters.", type = "error")
+      return()
+    }
+    if (!identical(password, confirmation)) {
+      showNotification("The two passwords do not match.", type = "error")
+      return()
+    }
+    session$sendCustomMessage("weeknight-five-auth-set-password", list(password = password))
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$account_sign_out, {
+    session$sendCustomMessage("weeknight-five-auth-sign-out", list())
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$account_sync_now, {
+    session$sendCustomMessage("weeknight-five-supabase-sync", list())
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$account_upload_recipes, {
+    if (sync_all_custom_recipes()) {
+      state$cloud_recipes_empty <- FALSE
+      showNotification("Uploading this browser's recipes to the family collection.", type = "message")
+    }
   }, ignoreInit = TRUE)
 
   current_region <- reactive(input$season_region %||% state$settings$season_region %||% "Southeast")
@@ -785,6 +989,7 @@ server <- function(input, output, session) {
     state$recipes <- rbind(state$recipes, new_recipe)
     state$ingredients <- rbind(state$ingredients, new_ingredients)
     persist_custom_recipes()
+    send_cloud_recipe(recipe_id)
     updateSelectizeInput(session, "pantry_items", choices = sort(unique(state$ingredients$ingredient)),
                          selected = state$pantry_items, server = TRUE)
     updateSelectizeInput(session, "deal_ingredient", choices = sort(unique(state$ingredients$ingredient)), server = TRUE)
@@ -814,6 +1019,7 @@ server <- function(input, output, session) {
       return()
     }
     recipe_name <- state$recipes$recipe_name[state$recipes$recipe_id == id][1]
+    session$sendCustomMessage("weeknight-five-supabase-delete-recipe", list(recipe_id = id))
     state$recipes <- state$recipes[state$recipes$recipe_id != id, , drop = FALSE]
     state$ingredients <- state$ingredients[state$ingredients$recipe_id != id, , drop = FALSE]
     state$recent_ids <- setdiff(state$recent_ids, id)
@@ -1284,6 +1490,7 @@ server <- function(input, output, session) {
     persist()
     persist_custom_recipes()
     persist_deals()
+    sync_all_custom_recipes()
     restore_pending(NULL)
     removeModal()
     showNotification("Your Weeknight Five backup was restored.", type = "message", duration = 6)

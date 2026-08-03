@@ -13,7 +13,7 @@ You can also open `run_app.R` and click **Source** after setup. The Desktop copy
 ## What is included
 
 - 126 easy starter recipes: 70 dinners, 28 breakfasts, and 28 lunches
-- A no-code **My Recipes** form with ingredient rows and local saving
+- A no-code **My Recipes** form with ingredient rows and family sharing
 - Recipe-link importing that pre-fills the editable My Recipes form from standard Recipe metadata
 - Five-night planning with protein rotation, meal locks, and individual swaps
 - Optional five-day breakfast and lunch plans with their own fresh-plan, lock, swap, and recipe controls
@@ -24,8 +24,8 @@ You can also open `run_app.R` and click **Source** after setup. The Desktop copy
 - Active ALDI and Publix BOGO deal matching
 - Quantities scaled to 5.4 adult-size portions by default: dinner for two adults, two two-year-olds, one four-year-old, plus two adult lunches
 - Combined, categorized grocery list and CSV download
-- Local settings, recipes, pantry items, deals, and meal-history storage
-- Browser storage and backup/restore controls for the GitHub Pages version
+- Optional Supabase sign-in: shared family recipes plus private per-person planner data
+- Browser storage and backup/restore controls that continue working while signed out
 - Celiac reminders for commonly risky ingredients and cross-contact
 
 ## Family recipes
@@ -38,7 +38,13 @@ Nutrition values are convenient planning estimates per serving. Imported recipes
 
 The expanded recipe library contains mild, simplified gluten-free adaptations inspired by concepts in TheMealDB and the Wikibooks Cookbook. Each adapted recipe includes a link to its source inspiration. The directions are newly written for this app and the nutrition values are planning estimates. See `ATTRIBUTION.md` for source and license details.
 
-On GitHub Pages, personal data is saved only in the current browser on the current device. Use **Settings > Download my backup** before clearing browser data or moving to another phone. Restore that `.rds` file from the same Settings tab.
+The app always keeps an on-device browser copy. After Supabase is set up and you sign in under **Settings**, family recipes sync to everyone in the same family. Pantry selections, household settings, meal history, and store deals sync only to the signed-in person. Use **Settings > Download my backup** for an additional portable copy.
+
+## Supabase family sharing
+
+The public Supabase project address and publishable browser key live in `www/supabase-config.js`. The app never needs a secret or service-role key. Database access is protected by the Row Level Security policies in `supabase/schema.sql`.
+
+Follow `SUPABASE_SETUP.md` to create the tables, configure the GitHub Pages redirect address, create the family owner, and invite relatives. No npm installation is needed because the browser library is included in `www/vendor/`.
 
 ## Publish with GitHub Pages
 
@@ -61,6 +67,9 @@ The recipes are designed to be gluten-free as written, but ingredient formulatio
 - `R/expanded_recipes.R` — 90 sourced, simplified recipe adaptations
 - `R/planner.R` — meal selection, portion scaling, and grocery calculations
 - `R/storage.R` — local saved recipes, deals, and preferences
+- `R/supabase.R` — cloud recipe-payload and account helpers
 - `R/seasonality.R` — regional produce seasons and active-deal matching
+- `supabase/` — database, security-policy, owner, and relative setup SQL
+- `www/supabase-sync.js` — sign-in and cloud synchronization
 - `www/styles.css` — colors and visual design
 - `tests/` — automated planner and interactive-session checks

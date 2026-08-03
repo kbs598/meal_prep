@@ -1,10 +1,13 @@
 project_dir <- normalizePath(file.path(getwd()), winslash = "/", mustWork = TRUE)
 if (basename(project_dir) == "tests") project_dir <- dirname(project_dir)
+project_library <- file.path(project_dir, "packages")
+if (dir.exists(project_library)) .libPaths(c(project_library, .libPaths()))
 
 source(file.path(project_dir, "R", "recipes.R"))
 source(file.path(project_dir, "R", "expanded_recipes.R"))
 source(file.path(project_dir, "R", "planner.R"))
 source(file.path(project_dir, "R", "storage.R"))
+source(file.path(project_dir, "R", "supabase.R"))
 source(file.path(project_dir, "R", "seasonality.R"))
 
 expanded <- expanded_recipe_data()
@@ -96,5 +99,20 @@ stopifnot("source_url" %in% names(normalized_legacy$recipes))
 stopifnot(identical(normalized_legacy$recipes$source_url, ""))
 stopifnot(identical(normalized_legacy$recipes$meal_type, "Dinner"))
 stopifnot(identical(normalized_legacy$recipes$calories, 400))
+
+cloud_single <- single_custom_recipe_data(
+  custom$recipes$recipe_id[1],
+  custom$recipes,
+  custom$ingredients
+)
+stopifnot(nrow(cloud_single$recipes) == 1)
+stopifnot(nrow(cloud_single$ingredients) > 0)
+cloud_combined <- combine_cloud_recipe_payloads(list(encode_browser_data(cloud_single)))
+stopifnot(identical(cloud_combined$recipes$recipe_id, cloud_single$recipes$recipe_id))
+stopifnot(nrow(cloud_combined$ingredients) == nrow(cloud_single$ingredients))
+cloud_auth <- normalize_cloud_auth(list(status = "signed_in", email = "cook@example.com", family_id = "family-1"))
+stopifnot(identical(cloud_auth$status, "signed_in"))
+stopifnot(identical(cloud_auth$email, "cook@example.com"))
+stopifnot(!isTRUE(cloud_auth$needs_password))
 
 cat("All planner, recipe, season, and deal checks passed.\n")
