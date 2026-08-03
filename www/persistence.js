@@ -139,6 +139,13 @@
     return match ? Math.max(1, Math.round(Number(match[0]))) : 4;
   }
 
+  function nutrientNumber(value) {
+    if (Array.isArray(value)) value = value[0];
+    if (value && typeof value === "object") value = value.value || value.name;
+    var match = String(value || "").replace(/,/g, "").match(/\d+(?:\.\d+)?/);
+    return match ? Math.round(Number(match[0]) * 10) / 10 : null;
+  }
+
   function flattenInstructions(value, output) {
     output = output || [];
     if (!value) return output;
@@ -278,14 +285,21 @@
       var minutes = durationMinutes(recipe.totalTime);
       if (!minutes) minutes = durationMinutes(recipe.prepTime) + durationMinutes(recipe.cookTime);
       if (!minutes) minutes = 30;
+      var nutrition = recipe.nutrition || {};
+      var categoryText = Array.isArray(recipe.recipeCategory) ? recipe.recipeCategory.join(" ") : String(recipe.recipeCategory || "");
+      var importedMealType = /breakfast|brunch/i.test(categoryText) ? "Breakfast" : (/lunch/i.test(categoryText) ? "Lunch" : "Dinner");
 
       importResult({
         ok: true,
         recipe: {
           name: decodeHtml(recipe.name || doc.title || "Imported recipe"),
           description: decodeHtml(recipe.description || "Imported family recipe"),
+          meal_type: importedMealType,
           minutes: minutes,
           servings: recipeServings(recipe.recipeYield || recipe.yield),
+          calories: nutrientNumber(nutrition.calories),
+          protein_g: nutrientNumber(nutrition.proteinContent),
+          fiber_g: nutrientNumber(nutrition.fiberContent),
           instructions: steps.map(function (step, index) { return (index + 1) + ". " + step; }).join("\n\n"),
           ingredients: ingredients,
           url: source.href
@@ -297,5 +311,9 @@
         (error && error.message ? error.message : "That recipe could not be imported.");
       importResult({ok: false, message: messageText});
     }
+  });
+
+  window.Shiny.addCustomMessageHandler("weeknight-five-print", function (message) {
+    window.setTimeout(function () { window.print(); }, 100);
   });
 })();

@@ -1,7 +1,12 @@
 family_portions <- function(adults = 2, toddlers = 2, young_children = 1,
                             toddler_weight = 0.4, child_weight = 0.6,
                             lunch_servings = 2) {
-  adults + toddlers * toddler_weight + young_children * child_weight + lunch_servings
+  household_portions(adults, toddlers, young_children, toddler_weight, child_weight) + lunch_servings
+}
+
+household_portions <- function(adults = 2, toddlers = 2, young_children = 1,
+                               toddler_weight = 0.4, child_weight = 0.6) {
+  adults + toddlers * toddler_weight + young_children * child_weight
 }
 
 pantry_match <- function(recipe_id, ingredients, pantry_items) {
@@ -37,8 +42,10 @@ pick_one_recipe <- function(candidates, ingredients, pantry_items, recent_ids,
 }
 
 generate_meal_plan <- function(recipes, ingredients, proteins, pantry_items = character(),
-                               recent_ids = character(), locked_plan = NULL, n = 5) {
+                               recent_ids = character(), locked_plan = NULL, n = 5,
+                               meal_type = NULL) {
   candidates <- recipes[recipes$protein %in% proteins, , drop = FALSE]
+  if (!is.null(meal_type)) candidates <- candidates[candidates$meal_type == meal_type, , drop = FALSE]
   if (!nrow(candidates)) stop("Choose at least one protein category with available recipes.")
 
   plan <- data.frame(
@@ -76,8 +83,9 @@ generate_meal_plan <- function(recipes, ingredients, proteins, pantry_items = ch
 }
 
 swap_meal <- function(plan, position, recipes, ingredients, proteins,
-                      pantry_items = character(), recent_ids = character()) {
+                      pantry_items = character(), recent_ids = character(), meal_type = NULL) {
   candidates <- recipes[recipes$protein %in% proteins, , drop = FALSE]
+  if (!is.null(meal_type)) candidates <- candidates[candidates$meal_type == meal_type, , drop = FALSE]
   adjacent <- character()
   if (position > 1) adjacent <- c(adjacent, plan$recipe_id[position - 1])
   if (position < nrow(plan)) adjacent <- c(adjacent, plan$recipe_id[position + 1])
@@ -119,6 +127,11 @@ format_quantity <- function(x) {
 selection_reason <- function(recipe_id, recipes, ingredients, pantry_items) {
   recipe <- recipes[recipes$recipe_id == recipe_id, , drop = FALSE]
   match_rate <- pantry_match(recipe_id, ingredients, pantry_items)
+  if (!identical(recipe$meal_type[1], "Dinner")) {
+    if (match_rate >= 0.5) return(sprintf("Great pantry match - %d minutes", recipe$minutes))
+    if (recipe$minutes <= 15) return(sprintf("Fast family %s - %d minutes", tolower(recipe$meal_type), recipe$minutes))
+    return(sprintf("Adds variety - %d minutes", recipe$minutes))
+  }
   if (match_rate >= 0.5) {
     sprintf("Great pantry match • %d minutes", recipe$minutes)
   } else if (recipe$minutes <= 30) {
@@ -127,4 +140,3 @@ selection_reason <- function(recipe_id, recipes, ingredients, pantry_items) {
     sprintf("Adds variety • %d minutes", recipe$minutes)
   }
 }
-

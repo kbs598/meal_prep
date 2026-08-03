@@ -23,6 +23,7 @@ initial_deals <- load_deals(saved_deals_path)
 recipes <- rbind(builtin_data$recipes, custom_data$recipes)
 ingredients <- rbind(builtin_data$ingredients, custom_data$ingredients)
 all_proteins <- c("Chicken", "Turkey", "Beef", "Pork", "Fish", "Meatless")
+meal_types <- c("Dinner", "Breakfast", "Lunch")
 all_ingredients <- sort(unique(ingredients$ingredient))
 ingredient_units <- c("count", "lb", "oz", "cup", "tbsp", "tsp", "can", "bag", "package", "slice", "clove", "bunch", "head", "stalk")
 grocery_categories <- c("Produce", "Meat & Seafood", "Dairy", "Pantry", "Frozen", "Bakery")
@@ -67,15 +68,20 @@ ui <- navbarPage(
         div(
           class = "hero-copy",
           tags$h1("Five happy dinners. One easy week."),
-          tags$p("A mild, gluten-free plan built around protein variety, pantry matches, and enough food for tomorrow's lunches."),
+          tags$p("Dinner stays front and center, with optional breakfast and lunch rotations underneath."),
           div(class = "hero-actions",
               actionButton("generate_plan", "✨ Make a fresh plan", class = "btn-rainbow"),
-              actionButton("save_week", "Save to meal history", class = "btn-soft"))
+              actionButton("save_week", "Save to meal history", class = "btn-soft"),
+              actionButton("print_week", "Print fridge plan", icon = icon("print"), class = "btn-soft"))
         ),
         div(class = "portion-bubble", span("Planning for"), strong(textOutput("portion_total", inline = TRUE)), tags$small("adult-size portions"))
       ),
       uiOutput("plan_summary"),
-      uiOutput("meal_cards")
+      tags$h2(class = "primary-plan-heading", "Dinner plan"),
+      uiOutput("meal_cards"),
+      uiOutput("breakfast_plan_ui"),
+      uiOutput("lunch_plan_ui"),
+      uiOutput("print_week_plan")
     )
   ),
 
@@ -85,7 +91,7 @@ ui <- navbarPage(
       class = "page-shell",
       div(class = "page-heading",
           tags$h1("What's already at home?"),
-          tags$p("Choose anything you have enough of for this week's dinners. We'll leave it off the grocery list.")),
+          tags$p("Choose anything you have enough of for this week's meals. We'll leave it off the grocery list.")),
       div(
         class = "content-card pantry-card",
         selectizeInput(
@@ -110,6 +116,7 @@ ui <- navbarPage(
           tags$p("Every starter recipe is mild, gluten-free as written, and editable in a future recipe-entry step.")),
       div(
         class = "filter-bar",
+        selectInput("recipe_meal_type", "Show meal", choices = c("All", meal_types), selected = "All"),
         selectInput("recipe_protein", "Show protein", choices = c("All", all_proteins), selected = "All"),
         sliderInput("recipe_time", "Maximum time", min = 20, max = 45, value = 45, step = 5, post = " min")
       ),
@@ -144,12 +151,19 @@ ui <- navbarPage(
         div(
           class = "content-card recipe-form-card",
           tags$h2("Recipe details"),
+          selectInput("custom_meal_type", "Meal rotation", choices = meal_types, selected = "Dinner"),
           div(class = "form-row two-up",
               textInput("custom_name", "Recipe name", placeholder = "Grandma's easy meatloaf"),
               selectInput("custom_protein", "Main protein", choices = all_proteins)),
           div(class = "form-row two-up",
               numericInput("custom_minutes", "Total minutes", value = 30, min = 5, max = 480),
               numericInput("custom_servings", "Base servings", value = 4, min = 1, max = 30)),
+          tags$h3(class = "nutrition-form-heading", "Estimated nutrition per serving"),
+          div(class = "form-row three-up nutrition-inputs",
+              numericInput("custom_calories", "Calories", value = 400, min = 0, max = 3000, step = 10),
+              numericInput("custom_protein_g", "Protein (g)", value = 25, min = 0, max = 300, step = 1),
+              numericInput("custom_fiber_g", "Fiber (g)", value = 5, min = 0, max = 100, step = 1)),
+          tags$p(class = "setting-note nutrition-estimate-note", "These are planning estimates, not medical or dietetic calculations."),
           textAreaInput("custom_description", "Short description", rows = 2, placeholder = "What makes this dinner useful or family-friendly?"),
           textInput("custom_source_url", "Original recipe link", placeholder = "Optional"),
           textAreaInput("custom_instructions", "Directions", rows = 5, placeholder = "Write the cooking steps here..."),
@@ -229,7 +243,7 @@ ui <- navbarPage(
       class = "page-shell",
       div(
         class = "page-heading heading-with-action",
-        div(tags$h1("One colorful grocery list"), tags$p("Quantities are combined across all five dinners and pantry items are removed.")),
+        div(tags$h1("One colorful grocery list"), tags$p("Quantities are combined across dinner and any enabled breakfast or lunch plans. Pantry items are removed.")),
         downloadButton("download_grocery", "Download CSV", class = "btn-rainbow")
       ),
       uiOutput("grocery_list_ui")
@@ -261,6 +275,14 @@ ui <- navbarPage(
           actionButton("save_settings", "Save settings", class = "btn-rainbow")
         ),
         div(
+          class = "content-card",
+          tags$h2("Optional meal plans"),
+          checkboxInput("plan_breakfast", "Include a five-day breakfast rotation", value = isTRUE(initial_state$settings$plan_breakfast)),
+          checkboxInput("plan_lunch", "Include a five-day lunch rotation", value = isTRUE(initial_state$settings$plan_lunch)),
+          tags$p(class = "setting-note", "Dinner always remains the main plan. Enabled breakfast and lunch meals also join the grocery list and printed fridge plan."),
+          actionButton("save_meal_options", "Save meal options", class = "btn-rainbow")
+        ),
+        div(
           class = "content-card settings-wide",
           tags$h2("Phone data & backup"),
           tags$p(
@@ -288,7 +310,9 @@ server <- function(input, output, session) {
     deals = initial_deals,
     ingredient_row_count = 4,
     import_status = NULL,
-    plan = NULL
+    plan = NULL,
+    breakfast_plan = NULL,
+    lunch_plan = NULL
   )
   restore_pending <- reactiveVal(NULL)
 
@@ -303,6 +327,16 @@ server <- function(input, output, session) {
     )
   })
 
+  current_household_portions <- reactive({
+    household_portions(
+      adults = input$adults %||% state$settings$adults,
+      toddlers = input$toddlers %||% state$settings$toddlers,
+      young_children = input$young_children %||% state$settings$young_children,
+      toddler_weight = state$settings$toddler_weight,
+      child_weight = state$settings$child_weight
+    )
+  })
+
   send_browser_data <- function(key, value) {
     session$sendCustomMessage(
       "weeknight-five-save",
@@ -312,16 +346,18 @@ server <- function(input, output, session) {
 
   saved_state_data <- function() {
     list(
-      pantry_items = state$pantry_items,
-      recent_ids = state$recent_ids,
-      settings = state$settings
+      pantry_items = isolate(state$pantry_items),
+      recent_ids = isolate(state$recent_ids),
+      settings = isolate(state$settings)
     )
   }
 
   saved_custom_data <- function() {
-    custom_recipes <- state$recipes[state$recipes$source == "My recipe", , drop = FALSE]
+    recipes_now <- isolate(state$recipes)
+    ingredients_now <- isolate(state$ingredients)
+    custom_recipes <- recipes_now[recipes_now$source == "My recipe", , drop = FALSE]
     custom_ids <- custom_recipes$recipe_id
-    custom_ingredients <- state$ingredients[state$ingredients$recipe_id %in% custom_ids, , drop = FALSE]
+    custom_ingredients <- ingredients_now[ingredients_now$recipe_id %in% custom_ids, , drop = FALSE]
     list(recipes = custom_recipes, ingredients = custom_ingredients)
   }
 
@@ -363,9 +399,13 @@ server <- function(input, output, session) {
     updateNumericInput(session, "toddlers", value = state$settings$toddlers)
     updateNumericInput(session, "young_children", value = state$settings$young_children)
     updateNumericInput(session, "lunch_servings", value = state$settings$lunch_servings)
+    updateCheckboxInput(session, "plan_breakfast", value = isTRUE(state$settings$plan_breakfast))
+    updateCheckboxInput(session, "plan_lunch", value = isTRUE(state$settings$plan_lunch))
     updateSelectInput(session, "season_region", selected = state$settings$season_region)
     updateTextInput(session, "zip_code", value = state$settings$zip_code)
     state$plan <- NULL
+    state$breakfast_plan <- NULL
+    state$lunch_plan <- NULL
     TRUE
   }
 
@@ -380,6 +420,8 @@ server <- function(input, output, session) {
     state$recent_ids <- intersect(state$recent_ids, state$recipes$recipe_id)
     refresh_recipe_inputs()
     state$plan <- NULL
+    state$breakfast_plan <- NULL
+    state$lunch_plan <- NULL
     TRUE
   }
 
@@ -400,6 +442,8 @@ server <- function(input, output, session) {
     updateNumericInput(session, "toddlers", value = state$settings$toddlers)
     updateNumericInput(session, "young_children", value = state$settings$young_children)
     updateNumericInput(session, "lunch_servings", value = state$settings$lunch_servings)
+    updateCheckboxInput(session, "plan_breakfast", value = isTRUE(state$settings$plan_breakfast))
+    updateCheckboxInput(session, "plan_lunch", value = isTRUE(state$settings$plan_lunch))
     updateSelectInput(session, "season_region", selected = state$settings$season_region)
     updateTextInput(session, "zip_code", value = state$settings$zip_code)
     updateSelectInput(session, "delete_deal_id",
@@ -466,7 +510,31 @@ server <- function(input, output, session) {
         state$recipes, state$ingredients, proteins,
         pantry_items = state$pantry_items,
         recent_ids = state$recent_ids,
-        locked_plan = locked
+        locked_plan = locked,
+        meal_type = "Dinner"
+      ),
+      error = function(e) {
+        showNotification(conditionMessage(e), type = "error")
+        NULL
+      }
+    )
+  }
+
+  make_secondary_plan <- function(meal_type, keep_locked = TRUE) {
+    plan_key <- paste0(tolower(meal_type), "_plan")
+    setting_key <- paste0("plan_", tolower(meal_type))
+    if (!isTRUE(state$settings[[setting_key]])) {
+      state[[plan_key]] <- NULL
+      return()
+    }
+    locked <- if (keep_locked) state[[plan_key]] else NULL
+    state[[plan_key]] <- tryCatch(
+      generate_meal_plan(
+        state$recipes, state$ingredients, all_proteins,
+        pantry_items = state$pantry_items,
+        recent_ids = state$recent_ids,
+        locked_plan = locked,
+        meal_type = meal_type
       ),
       error = function(e) {
         showNotification(conditionMessage(e), type = "error")
@@ -477,9 +545,13 @@ server <- function(input, output, session) {
 
   observe({
     if (is.null(state$plan)) make_plan(keep_locked = FALSE)
+    if (isTRUE(state$settings$plan_breakfast) && is.null(state$breakfast_plan)) make_secondary_plan("Breakfast", keep_locked = FALSE)
+    if (isTRUE(state$settings$plan_lunch) && is.null(state$lunch_plan)) make_secondary_plan("Lunch", keep_locked = FALSE)
   })
 
   observeEvent(input$generate_plan, make_plan(keep_locked = TRUE), ignoreInit = TRUE)
+  observeEvent(input$generate_breakfast_plan, make_secondary_plan("Breakfast", keep_locked = TRUE), ignoreInit = TRUE)
+  observeEvent(input$generate_lunch_plan, make_secondary_plan("Lunch", keep_locked = TRUE), ignoreInit = TRUE)
 
   observeEvent(input$pantry_items, {
     state$pantry_items <- input$pantry_items %||% character()
@@ -500,6 +572,15 @@ server <- function(input, output, session) {
     showNotification("Family settings saved!", type = "message")
   }, ignoreInit = TRUE)
 
+  observeEvent(input$save_meal_options, {
+    state$settings$plan_breakfast <- isTRUE(input$plan_breakfast)
+    state$settings$plan_lunch <- isTRUE(input$plan_lunch)
+    if (state$settings$plan_breakfast) make_secondary_plan("Breakfast", keep_locked = TRUE) else state$breakfast_plan <- NULL
+    if (state$settings$plan_lunch) make_secondary_plan("Lunch", keep_locked = TRUE) else state$lunch_plan <- NULL
+    persist()
+    showNotification("Breakfast and lunch options saved.", type = "message")
+  }, ignoreInit = TRUE)
+
   observeEvent(input$save_location, {
     zip <- trimws(input$zip_code %||% "")
     if (nzchar(zip) && !grepl("^[0-9]{5}$", zip)) {
@@ -514,7 +595,12 @@ server <- function(input, output, session) {
 
   observeEvent(input$save_week, {
     req(state$plan)
-    state$recent_ids <- unique(c(state$plan$recipe_id, state$recent_ids))
+    planned_ids <- c(
+      state$plan$recipe_id,
+      if (!is.null(state$breakfast_plan)) state$breakfast_plan$recipe_id else character(),
+      if (!is.null(state$lunch_plan)) state$lunch_plan$recipe_id else character()
+    )
+    state$recent_ids <- unique(c(planned_ids, state$recent_ids))
     state$recent_ids <- head(state$recent_ids, 40)
     persist()
     showNotification("This week was added to meal history.", type = "message")
@@ -573,11 +659,21 @@ server <- function(input, output, session) {
 
     imported_items <- head(imported_items, 30)
     item_names <- vapply(imported_items, function(x) as.character(x$ingredient %||% ""), character(1))
+    imported_number <- function(value, fallback) {
+      number <- suppressWarnings(as.numeric(value %||% fallback))
+      if (!length(number) || !is.finite(number[1]) || number[1] < 0) fallback else number[1]
+    }
+    imported_meal_type <- as.character(imported$meal_type %||% "Dinner")
+    if (!imported_meal_type %in% meal_types) imported_meal_type <- "Dinner"
     state$ingredient_row_count <- length(imported_items)
     updateTextInput(session, "custom_name", value = imported$name %||% "Imported recipe")
+    updateSelectInput(session, "custom_meal_type", selected = imported_meal_type)
     updateSelectInput(session, "custom_protein", selected = guess_imported_protein(item_names))
     updateNumericInput(session, "custom_minutes", value = max(5, min(480, as.numeric(imported$minutes %||% 30))))
     updateNumericInput(session, "custom_servings", value = max(1, min(30, as.numeric(imported$servings %||% 4))))
+    updateNumericInput(session, "custom_calories", value = imported_number(imported$calories, 400))
+    updateNumericInput(session, "custom_protein_g", value = imported_number(imported$protein_g, 25))
+    updateNumericInput(session, "custom_fiber_g", value = imported_number(imported$fiber_g, 5))
     updateTextAreaInput(session, "custom_description", value = imported$description %||% "Imported family recipe")
     updateTextInput(session, "custom_source_url", value = imported$url %||% "")
     updateTextAreaInput(session, "custom_instructions", value = imported$instructions %||% "")
@@ -663,8 +759,12 @@ server <- function(input, output, session) {
       recipe_id = recipe_id,
       recipe_name = recipe_name,
       protein = input$custom_protein,
+      meal_type = input$custom_meal_type %||% "Dinner",
       minutes = as.numeric(input$custom_minutes),
       base_servings = as.numeric(input$custom_servings),
+      calories = as.numeric(input$custom_calories %||% 400),
+      protein_g = as.numeric(input$custom_protein_g %||% 25),
+      fiber_g = as.numeric(input$custom_fiber_g %||% 5),
       description = trimws(input$custom_description %||% "Family recipe"),
       kid_note = trimws(input$custom_kid_note %||% "Serve in age-appropriate pieces."),
       instructions = instructions_text,
@@ -689,12 +789,16 @@ server <- function(input, output, session) {
     custom <- state$recipes[state$recipes$source == "My recipe", , drop = FALSE]
     updateSelectInput(session, "delete_recipe_id", choices = setNames(custom$recipe_id, custom$recipe_name))
     updateTextInput(session, "custom_name", value = "")
+    updateSelectInput(session, "custom_meal_type", selected = "Dinner")
     updateTextAreaInput(session, "custom_description", value = "")
     updateTextInput(session, "custom_source_url", value = "")
     updateTextAreaInput(session, "custom_instructions", value = "")
     updateTextAreaInput(session, "custom_kid_note", value = "")
     updateNumericInput(session, "custom_minutes", value = 30)
     updateNumericInput(session, "custom_servings", value = 4)
+    updateNumericInput(session, "custom_calories", value = 400)
+    updateNumericInput(session, "custom_protein_g", value = 25)
+    updateNumericInput(session, "custom_fiber_g", value = 5)
     updateCheckboxInput(session, "custom_gf_confirm", value = FALSE)
     state$ingredient_row_count <- 4
     state$import_status <- NULL
@@ -718,6 +822,8 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, "pantry_items", choices = sort(unique(state$ingredients$ingredient)),
                          selected = state$pantry_items, server = TRUE)
     if (!is.null(state$plan) && id %in% state$plan$recipe_id) make_plan(keep_locked = FALSE)
+    if (!is.null(state$breakfast_plan) && id %in% state$breakfast_plan$recipe_id) make_secondary_plan("Breakfast", keep_locked = FALSE)
+    if (!is.null(state$lunch_plan) && id %in% state$lunch_plan$recipe_id) make_secondary_plan("Lunch", keep_locked = FALSE)
     showNotification(paste(recipe_name, "was removed."), type = "message")
   }, ignoreInit = TRUE)
 
@@ -758,6 +864,37 @@ server <- function(input, output, session) {
                       choices = setNames(state$deals$deal_id, paste(state$deals$store, state$deals$ingredient, sep = " — ")))
   }, ignoreInit = TRUE)
 
+  show_recipe_details <- function(id, planned_portions) {
+    recipe <- state$recipes[state$recipes$recipe_id == id, , drop = FALSE]
+    ing <- state$ingredients[state$ingredients$recipe_id == id, , drop = FALSE]
+    seasonal <- recipe_seasonal(id)
+    sales <- recipe_deals(id)
+    scale <- planned_portions / recipe$base_servings
+    showModal(modalDialog(
+      title = tagList(span(class = "modal-emoji", unname(protein_emoji[recipe$protein])), recipe$recipe_name),
+      tags$p(class = "recipe-description", recipe$description),
+      if (nzchar(recipe$source_url)) tags$a(class = "recipe-source-link", href = recipe$source_url, target = "_blank", rel = "noopener noreferrer", "Open original recipe ↗"),
+      div(class = "recipe-meta-row", span(paste(recipe$minutes, "minutes")), span(paste(sprintf("%.1f", planned_portions), "planned portions")), span(recipe$meal_type)),
+      div(class = "nutrition-strip",
+          span(strong(round(recipe$calories)), " calories"),
+          span(strong(round(recipe$protein_g)), "g protein"),
+          span(strong(round(recipe$fiber_g)), "g fiber")),
+      tags$p(class = "nutrition-disclaimer", "Nutrition is an estimate per serving."),
+      if (length(seasonal)) div(class = "season-note", strong("In season: "), paste(seasonal, collapse = ", ")),
+      if (nrow(sales)) div(class = "sale-note", strong("Matching deals: "), paste(paste(sales$store, sales$ingredient, sales$offer, sep = " — "), collapse = "; ")),
+      tags$h4("Ingredients"),
+      tags$ul(class = "ingredient-list", lapply(seq_len(nrow(ing)), function(j) {
+        tags$li(sprintf("%s %s %s", format_quantity(ing$quantity[j] * scale), ing$unit[j], ing$ingredient[j]))
+      })),
+      tags$h4("Easy directions"),
+      tags$p(recipe$instructions),
+      div(class = "kid-note", strong("Little-kid note: "), recipe$kid_note),
+      div(class = "gf-note", strong("Celiac check: "), "Use the certified gluten-free products named above and clean, dedicated or thoroughly sanitized equipment."),
+      easyClose = TRUE,
+      footer = modalButton("Done")
+    ))
+  }
+
   for (i in seq_len(5)) {
     local({
       position <- i
@@ -792,6 +929,11 @@ server <- function(input, output, session) {
           tags$p(class = "recipe-description", recipe$description),
           if (nzchar(recipe$source_url)) tags$a(class = "recipe-source-link", href = recipe$source_url, target = "_blank", rel = "noopener noreferrer", "Open original recipe ↗"),
           div(class = "recipe-meta-row", span(paste(recipe$minutes, "minutes")), span(paste(sprintf("%.1f", current_portions()), "planned portions")), span(recipe$protein)),
+          div(class = "nutrition-strip",
+              span(strong(round(recipe$calories)), " calories"),
+              span(strong(round(recipe$protein_g)), "g protein"),
+              span(strong(round(recipe$fiber_g)), "g fiber")),
+          tags$p(class = "nutrition-disclaimer", "Nutrition is an estimate per serving."),
           if (length(seasonal)) div(class = "season-note", strong("In season: "), paste(seasonal, collapse = ", ")),
           if (nrow(sales)) div(class = "sale-note", strong("Matching deals: "), paste(paste(sales$store, sales$ingredient, sales$offer, sep = " — "), collapse = "; ")),
           tags$h4("Ingredients"),
@@ -806,6 +948,44 @@ server <- function(input, output, session) {
           footer = modalButton("Done")
         ))
       }, ignoreInit = TRUE)
+    })
+  }
+
+  for (meal_type in c("Breakfast", "Lunch")) {
+    local({
+      this_meal_type <- meal_type
+      prefix <- tolower(this_meal_type)
+      plan_key <- paste0(prefix, "_plan")
+      for (i in seq_len(5)) {
+        local({
+          position <- i
+          observeEvent(input[[paste0("swap_", prefix, "_", position)]], {
+            plan <- state[[plan_key]]
+            req(plan)
+            if (isTRUE(plan$locked[position])) {
+              showNotification("Unlock this meal before swapping it.", type = "warning")
+              return()
+            }
+            state[[plan_key]] <- swap_meal(
+              plan, position, state$recipes, state$ingredients, all_proteins,
+              state$pantry_items, state$recent_ids, meal_type = this_meal_type
+            )
+          }, ignoreInit = TRUE)
+
+          observeEvent(input[[paste0("lock_", prefix, "_", position)]], {
+            plan <- state[[plan_key]]
+            req(plan)
+            plan$locked[position] <- !plan$locked[position]
+            state[[plan_key]] <- plan
+          }, ignoreInit = TRUE)
+
+          observeEvent(input[[paste0("view_", prefix, "_", position)]], {
+            plan <- state[[plan_key]]
+            req(plan)
+            show_recipe_details(plan$recipe_id[position], current_household_portions())
+          }, ignoreInit = TRUE)
+        })
+      }
     })
   }
 
@@ -842,6 +1022,7 @@ server <- function(input, output, session) {
           div(class = "meal-tags",
               span(class = "protein-tag", item$protein),
               span(class = "time-tag", paste("⏱", item$minutes, "min")),
+              span(class = "nutrition-tag", paste(round(item$calories), "cal •", round(item$protein_g), "g protein •", round(item$fiber_g), "g fiber")),
               if (length(seasonal)) span(class = "season-badge", paste("🌱", length(seasonal), "in season")),
               if (nrow(sales)) span(class = "sale-badge", paste("🏷️", nrow(sales), "deal match"))),
           tags$h2(item$recipe_name),
@@ -857,6 +1038,79 @@ server <- function(input, output, session) {
       )
     })
     div(class = "meal-grid", cards)
+  })
+
+  secondary_plan_section <- function(meal_type, plan) {
+    prefix <- tolower(meal_type)
+    cards <- lapply(seq_len(nrow(plan)), function(i) {
+      item <- state$recipes[state$recipes$recipe_id == plan$recipe_id[i], , drop = FALSE]
+      locked <- isTRUE(plan$locked[i])
+      div(
+        class = "secondary-meal-card",
+        div(class = "secondary-day", plan$day[i]),
+        div(class = "secondary-meal-copy",
+            tags$h3(item$recipe_name),
+            tags$p(paste(item$minutes, "min •", round(item$calories), "cal •", round(item$protein_g), "g protein •", round(item$fiber_g), "g fiber"))),
+        div(class = "secondary-meal-actions",
+            actionButton(paste0("view_", prefix, "_", i), "Recipe", class = "card-button"),
+            actionButton(paste0("swap_", prefix, "_", i), "Swap", class = "card-button", disabled = if (locked) "disabled" else NULL),
+            actionButton(paste0("lock_", prefix, "_", i), if (locked) "🔒 Locked" else "🔓 Lock", class = if (locked) "card-button locked" else "card-button"))
+      )
+    })
+    div(
+      class = paste("secondary-plan-section", paste0(prefix, "-plan-section")),
+      div(class = "secondary-plan-heading",
+          div(tags$h2(paste(meal_type, "plan")), tags$p(paste("A lighter five-day", tolower(meal_type), "rotation for the same family week."))),
+          actionButton(paste0("generate_", prefix, "_plan"), paste("Fresh", tolower(meal_type), "week"), class = "btn-soft")),
+      div(class = "secondary-meal-grid", cards)
+    )
+  }
+
+  output$breakfast_plan_ui <- renderUI({
+    if (!isTRUE(state$settings$plan_breakfast)) return(NULL)
+    req(state$breakfast_plan)
+    secondary_plan_section("Breakfast", state$breakfast_plan)
+  })
+
+  output$lunch_plan_ui <- renderUI({
+    if (!isTRUE(state$settings$plan_lunch)) return(NULL)
+    req(state$lunch_plan)
+    secondary_plan_section("Lunch", state$lunch_plan)
+  })
+
+  observeEvent(input$print_week, {
+    session$sendCustomMessage("weeknight-five-print", list())
+  }, ignoreInit = TRUE)
+
+  output$print_week_plan <- renderUI({
+    req(state$plan)
+    include_breakfast <- isTRUE(state$settings$plan_breakfast) && !is.null(state$breakfast_plan)
+    include_lunch <- isTRUE(state$settings$plan_lunch) && !is.null(state$lunch_plan)
+    print_cell <- function(plan, i) {
+      item <- state$recipes[state$recipes$recipe_id == plan$recipe_id[i], , drop = FALSE]
+      tags$td(
+        tags$strong(item$recipe_name),
+        tags$small(paste(round(item$calories), "cal •", round(item$protein_g), "g protein •", round(item$fiber_g), "g fiber"))
+      )
+    }
+    header_cells <- list(tags$th("Day"))
+    if (include_breakfast) header_cells <- c(header_cells, list(tags$th("Breakfast")))
+    if (include_lunch) header_cells <- c(header_cells, list(tags$th("Lunch")))
+    header_cells <- c(header_cells, list(tags$th("Dinner")))
+    rows <- lapply(seq_len(nrow(state$plan)), function(i) {
+      cells <- list(tags$th(state$plan$day[i]))
+      if (include_breakfast) cells <- c(cells, list(print_cell(state$breakfast_plan, i)))
+      if (include_lunch) cells <- c(cells, list(print_cell(state$lunch_plan, i)))
+      cells <- c(cells, list(print_cell(state$plan, i)))
+      do.call(tags$tr, cells)
+    })
+    div(
+      class = "print-week-plan",
+      tags$h1("Weeknight Five - This Week's Meal Plan"),
+      tags$p(class = "print-subtitle", paste("Gluten-free family plan • Printed", format(Sys.Date(), "%B %d, %Y"))),
+      tags$table(class = "print-plan-table", tags$thead(do.call(tags$tr, header_cells)), tags$tbody(rows)),
+      tags$p(class = "print-footer-note", "Nutrition values are estimates per serving. Continue checking labels and cross-contact risks for every meal.")
+    )
   })
 
   output$pantry_summary <- renderUI({
@@ -875,7 +1129,8 @@ server <- function(input, output, session) {
           span(class = "protein-icon tiny", unname(protein_emoji[custom$protein[i]])),
           div(
             strong(custom$recipe_name[i]),
-            tags$small(paste(custom$protein[i], "•", custom$minutes[i], "min •", count, "ingredients")),
+            tags$small(paste(custom$meal_type[i], "•", custom$protein[i], "•", custom$minutes[i], "min •", count, "ingredients")),
+            tags$small(class = "saved-nutrition", paste(round(custom$calories[i]), "cal •", round(custom$protein_g[i]), "g protein •", round(custom$fiber_g[i]), "g fiber")),
             if (nzchar(custom$source_url[i])) tags$a(class = "saved-source-link", href = custom$source_url[i], target = "_blank", rel = "noopener noreferrer", "Original recipe ↗")
           ))
     }))
@@ -902,6 +1157,9 @@ server <- function(input, output, session) {
 
   output$recipe_gallery <- renderUI({
     filtered <- state$recipes[state$recipes$minutes <= input$recipe_time, , drop = FALSE]
+    if (!identical(input$recipe_meal_type, "All")) {
+      filtered <- filtered[filtered$meal_type == input$recipe_meal_type, , drop = FALSE]
+    }
     if (!identical(input$recipe_protein, "All")) {
       filtered <- filtered[filtered$protein == input$recipe_protein, , drop = FALSE]
     }
@@ -918,14 +1176,26 @@ server <- function(input, output, session) {
         div(class = "card-badges",
             if (length(seasonal)) span(class = "season-badge", paste("🌱", paste(seasonal, collapse = ", "))),
             if (nrow(sales)) span(class = "sale-badge", paste("🏷️", paste(unique(sales$store), collapse = " + ")))),
-        div(class = "recipe-footer", span(paste("⏱", item$minutes, "min")), span(paste(item$base_servings, "base servings")), span(item$source))
+        div(class = "nutrition-card-row", span(paste(round(item$calories), "cal")), span(paste(round(item$protein_g), "g protein")), span(paste(round(item$fiber_g), "g fiber"))),
+        div(class = "recipe-footer", span(item$meal_type), span(paste("⏱", item$minutes, "min")), span(paste(item$base_servings, "base servings")), span(item$source))
       )
     }))
   })
 
   current_grocery <- reactive({
     req(state$plan)
-    grocery_list(state$plan, state$recipes, state$ingredients, current_portions(), state$pantry_items)
+    lists <- list(grocery_list(state$plan, state$recipes, state$ingredients, current_portions(), state$pantry_items))
+    if (isTRUE(state$settings$plan_breakfast) && !is.null(state$breakfast_plan)) {
+      lists <- c(lists, list(grocery_list(state$breakfast_plan, state$recipes, state$ingredients, current_household_portions(), state$pantry_items)))
+    }
+    if (isTRUE(state$settings$plan_lunch) && !is.null(state$lunch_plan)) {
+      lists <- c(lists, list(grocery_list(state$lunch_plan, state$recipes, state$ingredients, current_household_portions(), state$pantry_items)))
+    }
+    lists <- lists[vapply(lists, nrow, integer(1)) > 0]
+    if (!length(lists)) return(data.frame(category = character(), ingredient = character(), unit = character(), quantity = numeric()))
+    combined <- do.call(rbind, lists)
+    result <- stats::aggregate(quantity ~ category + ingredient + unit, combined, sum)
+    result[order(result$category, result$ingredient), , drop = FALSE]
   })
 
   output$grocery_list_ui <- renderUI({
@@ -959,9 +1229,9 @@ server <- function(input, output, session) {
         list(
           format_version = 1L,
           created_at = as.character(Sys.time()),
-          state = saved_state_data(),
-          custom_data = saved_custom_data(),
-          deals = state$deals
+          state = isolate(saved_state_data()),
+          custom_data = isolate(saved_custom_data()),
+          deals = isolate(state$deals)
         ),
         file,
         version = 2
@@ -1013,7 +1283,7 @@ server <- function(input, output, session) {
 
   output$download_grocery <- downloadHandler(
     filename = function() paste0("weeknight-five-grocery-list-", Sys.Date(), ".csv"),
-    content = function(file) utils::write.csv(current_grocery(), file, row.names = FALSE)
+    content = function(file) utils::write.csv(isolate(current_grocery()), file, row.names = FALSE)
   )
 }
 

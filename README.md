@@ -1,6 +1,6 @@
 # Weeknight Five
 
-A bright, family-friendly Shiny app that creates five mild, gluten-free dinners, rotates main proteins, uses pantry ingredients, scales for family dinner plus adult lunches, and builds one grocery list.
+A bright, family-friendly Shiny app that keeps five mild, gluten-free dinners at the center of the week, adds optional breakfast and lunch rotations, uses pantry ingredients, and builds one grocery list.
 
 ## First-time setup
 
@@ -12,10 +12,13 @@ You can also open `run_app.R` and click **Source** after setup. The Desktop copy
 
 ## What is included
 
-- 20 easy starter recipes across chicken, turkey, beef, pork, fish, and meatless dinners
+- 36 easy starter recipes: 20 dinners, 8 breakfasts, and 8 lunches
 - A no-code **My Recipes** form with ingredient rows and local saving
 - Recipe-link importing that pre-fills the editable My Recipes form from standard Recipe metadata
 - Five-night planning with protein rotation, meal locks, and individual swaps
+- Optional five-day breakfast and lunch plans with their own fresh-plan, lock, swap, and recipe controls
+- Estimated calories, protein, and fiber per serving on every built-in recipe
+- A landscape print view that fits the complete week on a fridge-friendly page
 - Simple “have it / need it” pantry tracking
 - Regional in-season produce highlights
 - Active ALDI, Walmart, and Publix BOGO deal matching
@@ -27,9 +30,11 @@ You can also open `run_app.R` and click **Source** after setup. The Desktop copy
 
 ## Family recipes
 
-Use the **My Recipes** tab to enter a recipe without editing R files. Add the recipe details and as many ingredient rows as needed, then save. Personal recipes are stored separately from the built-in library and immediately become eligible for weekly rotation.
+Use the **My Recipes** tab to enter a recipe without editing R files. Choose its dinner, breakfast, or lunch rotation; add estimated nutrition and as many ingredient rows as needed; then save. Personal recipes are stored separately from the built-in library and immediately become eligible for the matching weekly rotation.
 
 You can also paste a public recipe-page link into **My Recipes > Import from a recipe link**. The app uses Jina Reader to retrieve the public page and looks for standard Schema.org Recipe data. It fills the form but does not save automatically: review ingredient quantities and grocery sections, select the correct main protein, and complete the gluten/cross-contact check first. Some websites block automated readers or omit standard recipe metadata; those links must be entered manually.
+
+Nutrition values are convenient planning estimates per serving. Imported recipes use the webpage's published nutrition values when available; otherwise the form keeps editable starter estimates. They are not a substitute for a dietitian or a medical nutrition calculation.
 
 On GitHub Pages, personal data is saved only in the current browser on the current device. Use **Settings > Download my backup** before clearing browser data or moving to another phone. Restore that `.rds` file from the same Settings tab.
 

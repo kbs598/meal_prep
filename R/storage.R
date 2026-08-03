@@ -14,6 +14,8 @@ default_state <- function() {
       toddler_weight = 0.4,
       child_weight = 0.6,
       lunch_servings = 2,
+      plan_breakfast = TRUE,
+      plan_lunch = TRUE,
       season_region = "Southeast",
       zip_code = ""
     )
@@ -24,7 +26,8 @@ empty_custom_recipe_data <- function() {
   list(
     recipes = data.frame(
       recipe_id = character(), recipe_name = character(), protein = character(),
-      minutes = numeric(), base_servings = numeric(), description = character(),
+      meal_type = character(), minutes = numeric(), base_servings = numeric(),
+      calories = numeric(), protein_g = numeric(), fiber_g = numeric(), description = character(),
       kid_note = character(), instructions = character(), source = character(),
       source_url = character(),
       stringsAsFactors = FALSE
@@ -42,6 +45,10 @@ normalize_custom_recipe_data <- function(data) {
     return(fallback)
   }
 
+  if (!"meal_type" %in% names(data$recipes)) data$recipes$meal_type <- "Dinner"
+  if (!"calories" %in% names(data$recipes)) data$recipes$calories <- 400
+  if (!"protein_g" %in% names(data$recipes)) data$recipes$protein_g <- 25
+  if (!"fiber_g" %in% names(data$recipes)) data$recipes$fiber_g <- 5
   if (!"source_url" %in% names(data$recipes)) data$recipes$source_url <- ""
   missing_recipe_columns <- setdiff(names(fallback$recipes), names(data$recipes))
   missing_ingredient_columns <- setdiff(names(fallback$ingredients), names(data$ingredients))

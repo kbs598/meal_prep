@@ -18,6 +18,9 @@ shiny::testServer(server, {
     lunch_servings = 2,
     proteins = c("Chicken", "Turkey", "Beef", "Pork", "Fish", "Meatless"),
     pantry_items = character(),
+    plan_breakfast = TRUE,
+    plan_lunch = TRUE,
+    recipe_meal_type = "All",
     recipe_protein = "All",
     recipe_time = 45,
     season_region = "Southeast",
@@ -26,6 +29,10 @@ shiny::testServer(server, {
   session$flushReact()
 
   stopifnot(nrow(state$plan) == 5)
+  stopifnot(nrow(state$breakfast_plan) == 5)
+  stopifnot(nrow(state$lunch_plan) == 5)
+  stopifnot(all(state$recipes$meal_type[match(state$breakfast_plan$recipe_id, state$recipes$recipe_id)] == "Breakfast"))
+  stopifnot(all(state$recipes$meal_type[match(state$lunch_plan$recipe_id, state$recipes$recipe_id)] == "Lunch"))
   stopifnot(output$portion_total == "5.4")
 
   first_recipe <- state$plan$recipe_id[1]
@@ -45,14 +52,21 @@ shiny::testServer(server, {
   groceries <- current_grocery()
   stopifnot(nrow(groceries) > 0)
   stopifnot(!is.null(output$meal_cards))
+  stopifnot(!is.null(output$breakfast_plan_ui))
+  stopifnot(!is.null(output$lunch_plan_ui))
+  stopifnot(!is.null(output$print_week_plan))
   stopifnot(!is.null(output$recipe_gallery))
   stopifnot(!is.null(output$grocery_list_ui))
 
   session$setInputs(
     custom_name = "Test Family Chicken",
     custom_protein = "Chicken",
+    custom_meal_type = "Lunch",
     custom_minutes = 25,
     custom_servings = 4,
+    custom_calories = 420,
+    custom_protein_g = 36,
+    custom_fiber_g = 6,
     custom_description = "A test recipe",
     custom_instructions = "Cook the chicken safely.",
     custom_kid_note = "Cut into small pieces.",
@@ -65,6 +79,9 @@ shiny::testServer(server, {
   session$setInputs(save_custom_recipe = 1)
   session$flushReact()
   stopifnot(any(state$recipes$recipe_name == "Test Family Chicken"))
+  test_recipe <- state$recipes[state$recipes$recipe_name == "Test Family Chicken", , drop = FALSE]
+  stopifnot(test_recipe$meal_type == "Lunch")
+  stopifnot(test_recipe$calories == 420)
   stopifnot(file.exists(saved_recipe_path))
 
   session$setInputs(

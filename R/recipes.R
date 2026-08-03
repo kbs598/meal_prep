@@ -11,14 +11,20 @@ ingredient_rows <- function(recipe_id, rows) {
 }
 
 make_recipe <- function(id, name, protein, minutes, description, instructions,
-                        ingredient_lines, kid_note = "Serve in small, age-appropriate pieces.") {
+                        ingredient_lines, kid_note = "Serve in small, age-appropriate pieces.",
+                        meal_type = "Dinner", calories = NA_real_, protein_g = NA_real_,
+                        fiber_g = NA_real_) {
   list(
     meta = data.frame(
       recipe_id = id,
       recipe_name = name,
       protein = protein,
+      meal_type = meal_type,
       minutes = minutes,
       base_servings = 4,
+      calories = calories,
+      protein_g = protein_g,
+      fiber_g = fiber_g,
       description = description,
       kid_note = kid_note,
       instructions = instructions,
@@ -159,8 +165,140 @@ builtin_recipe_data <- function() {
       "A fast pantry meal with eggs, vegetables, and leftover rice.",
       "Scramble eggs in half the oil and set aside. Add remaining oil, cold rice, peas and carrots, and tamari. Stir-fry until hot, then fold the eggs back in.",
       c("6|count|eggs|Dairy", "4|cup|cooked white rice|Pantry", "3|cup|frozen peas and carrots|Frozen", "3|tbsp|tamari (certified GF)|Pantry", "1|tbsp|sesame oil|Pantry", "1|tbsp|olive oil|Pantry")
+    ),
+    make_recipe(
+      "breakfast_yogurt_berry", "Greek Yogurt Berry Crunch Bowls", "Meatless", 5,
+      "Creamy yogurt, berries, and certified gluten-free granola in a build-your-own bowl.",
+      "Divide yogurt among bowls. Top with berries, granola, and a small drizzle of honey.",
+      c("4|cup|plain Greek yogurt|Dairy", "2|cup|mixed berries|Produce", "1|cup|granola (certified GF)|Pantry", "2|tbsp|honey|Pantry"),
+      meal_type = "Breakfast", calories = 330, protein_g = 24, fiber_g = 5
+    ),
+    make_recipe(
+      "breakfast_pb_banana_oats", "Peanut Butter Banana Oatmeal", "Meatless", 10,
+      "Warm oatmeal with banana and peanut butter for an easy, filling morning.",
+      "Cook oats with milk according to package directions. Stir in peanut butter and cinnamon. Top with sliced banana.",
+      c("2|cup|rolled oats (certified GF)|Pantry", "4|cup|milk|Dairy", "4|tbsp|peanut butter|Pantry", "2|count|bananas|Produce", "1|tsp|cinnamon (certified GF)|Pantry"),
+      meal_type = "Breakfast", calories = 390, protein_g = 16, fiber_g = 7
+    ),
+    make_recipe(
+      "breakfast_egg_tacos", "Egg and Cheese Breakfast Tacos", "Meatless", 15,
+      "Soft scrambled eggs and cheese tucked into warm corn tortillas.",
+      "Scramble eggs gently in butter. Warm tortillas according to the package. Fill with eggs, cheese, and avocado.",
+      c("8|count|eggs|Dairy", "8|count|corn tortillas (certified GF)|Bakery", "1|cup|shredded cheddar cheese|Dairy", "1|count|avocado|Produce", "1|tbsp|butter|Dairy"),
+      meal_type = "Breakfast", calories = 410, protein_g = 23, fiber_g = 5
+    ),
+    make_recipe(
+      "breakfast_cottage_fruit", "Cottage Cheese Fruit Plates", "Meatless", 5,
+      "A no-cook breakfast plate with cottage cheese, fruit, and crunchy seeds.",
+      "Spoon cottage cheese onto plates. Add sliced peaches and berries, then sprinkle with pumpkin seeds.",
+      c("4|cup|cottage cheese|Dairy", "4|count|peaches|Produce", "2|cup|strawberries|Produce", "0.5|cup|pumpkin seeds|Pantry"),
+      meal_type = "Breakfast", calories = 320, protein_g = 29, fiber_g = 5
+    ),
+    make_recipe(
+      "breakfast_banana_pancakes", "Banana Oat Pancakes", "Meatless", 20,
+      "Simple blender pancakes made with bananas, eggs, and certified gluten-free oats.",
+      "Blend bananas, eggs, oats, milk, baking powder, and cinnamon. Cook small pancakes on a lightly buttered skillet until golden on both sides.",
+      c("2|count|bananas|Produce", "4|count|eggs|Dairy", "2|cup|rolled oats (certified GF)|Pantry", "1|cup|milk|Dairy", "2|tsp|baking powder (certified GF)|Pantry", "1|tsp|cinnamon (certified GF)|Pantry", "1|tbsp|butter|Dairy"),
+      meal_type = "Breakfast", calories = 360, protein_g = 17, fiber_g = 6
+    ),
+    make_recipe(
+      "breakfast_egg_muffins", "Broccoli Cheddar Egg Muffins", "Meatless", 25,
+      "Make-ahead egg cups with broccoli and cheddar that reheat quickly.",
+      "Heat oven to 375°F. Whisk eggs and milk. Fold in finely chopped broccoli and cheese. Divide among a greased muffin tin and bake 16-18 minutes.",
+      c("10|count|eggs|Dairy", "1|cup|broccoli florets|Produce", "1|cup|shredded cheddar cheese|Dairy", "0.25|cup|milk|Dairy", "1|tbsp|olive oil|Pantry"),
+      meal_type = "Breakfast", calories = 300, protein_g = 24, fiber_g = 2
+    ),
+    make_recipe(
+      "breakfast_overnight_oats", "Apple Cinnamon Overnight Oats", "Meatless", 10,
+      "A refrigerator breakfast that is ready to grab in the morning.",
+      "Stir oats, milk, yogurt, chia seeds, cinnamon, and diced apples together. Refrigerate overnight and serve cold or gently warmed.",
+      c("2|cup|rolled oats (certified GF)|Pantry", "2|cup|milk|Dairy", "1|cup|plain Greek yogurt|Dairy", "2|count|apples|Produce", "4|tbsp|chia seeds|Pantry", "1|tsp|cinnamon (certified GF)|Pantry"),
+      meal_type = "Breakfast", calories = 370, protein_g = 19, fiber_g = 9
+    ),
+    make_recipe(
+      "breakfast_avocado_egg_toast", "Avocado Egg Toast", "Meatless", 15,
+      "Gluten-free toast topped with avocado and a softly cooked egg.",
+      "Toast bread. Mash avocado with lemon. Cook eggs to your preferred doneness and place on the avocado toast.",
+      c("8|slice|gluten-free bread|Bakery", "2|count|avocados|Produce", "8|count|eggs|Dairy", "1|count|lemon|Produce"),
+      meal_type = "Breakfast", calories = 430, protein_g = 20, fiber_g = 9
+    ),
+    make_recipe(
+      "lunch_turkey_rollups", "Turkey and Cheese Roll-Up Plates", "Turkey", 10,
+      "Turkey and cheese roll-ups with fruit, cucumbers, and gluten-free crackers.",
+      "Roll turkey slices around cheese. Serve with sliced cucumbers, grapes cut appropriately for children, and crackers.",
+      c("1|lb|deli turkey (certified GF)|Meat & Seafood", "8|slice|cheddar cheese|Dairy", "2|count|cucumbers|Produce", "2|cup|grapes|Produce", "8|oz|gluten-free crackers|Pantry"),
+      meal_type = "Lunch", calories = 420, protein_g = 30, fiber_g = 4
+    ),
+    make_recipe(
+      "lunch_chicken_rice", "Chicken Veggie Rice Bowls", "Chicken", 20,
+      "Quick rice bowls with chicken, vegetables, and a mild tamari drizzle.",
+      "Warm rice, chicken, and vegetables. Divide among bowls and drizzle lightly with tamari and sesame oil.",
+      c("3|cup|cooked chicken|Meat & Seafood", "4|cup|cooked white rice|Pantry", "3|cup|frozen mixed vegetables|Frozen", "2|tbsp|tamari (certified GF)|Pantry", "1|tbsp|sesame oil|Pantry"),
+      meal_type = "Lunch", calories = 480, protein_g = 32, fiber_g = 5
+    ),
+    make_recipe(
+      "lunch_tuna_potato", "Tuna Potato Salad Bowls", "Fish", 20,
+      "A creamy tuna and potato bowl with peas and cucumbers.",
+      "Microwave or boil potatoes until tender. Mix tuna, yogurt, mustard, and peas. Serve over potatoes with sliced cucumber.",
+      c("3|can|tuna|Pantry", "1.5|lb|baby potatoes|Produce", "1|cup|plain Greek yogurt|Dairy", "1|cup|frozen peas|Frozen", "1|count|cucumber|Produce", "1|tbsp|Dijon mustard (certified GF)|Pantry"),
+      meal_type = "Lunch", calories = 390, protein_g = 34, fiber_g = 6
+    ),
+    make_recipe(
+      "lunch_bean_quesadillas", "Lunchbox Bean Quesadillas", "Meatless", 15,
+      "Fast black bean and cheese quesadillas with tomatoes and avocado.",
+      "Mash beans and spread on tortillas. Add cheese, fold, and cook in a lightly oiled skillet. Cut into wedges and serve with tomato and avocado.",
+      c("8|count|corn tortillas (certified GF)|Bakery", "1|can|black beans|Pantry", "1.5|cup|shredded cheddar cheese|Dairy", "2|count|tomatoes|Produce", "1|count|avocado|Produce", "1|tbsp|olive oil|Pantry"),
+      meal_type = "Lunch", calories = 460, protein_g = 20, fiber_g = 12
+    ),
+    make_recipe(
+      "lunch_hummus_boxes", "Hummus Snack Boxes", "Meatless", 10,
+      "Colorful no-cook boxes with hummus, eggs, vegetables, fruit, and crackers.",
+      "Divide hummus into containers. Add halved eggs, sliced vegetables, berries, and gluten-free crackers.",
+      c("2|cup|hummus (certified GF)|Dairy", "8|count|eggs|Dairy", "4|count|carrots|Produce", "2|count|cucumbers|Produce", "2|cup|mixed berries|Produce", "8|oz|gluten-free crackers|Pantry"),
+      meal_type = "Lunch", calories = 440, protein_g = 22, fiber_g = 10
+    ),
+    make_recipe(
+      "lunch_egg_salad", "Egg Salad Cracker Plates", "Meatless", 15,
+      "Creamy egg salad with gluten-free crackers, tomatoes, and fruit.",
+      "Chop eggs and mix with yogurt, mayonnaise, and mustard. Serve with crackers, tomato wedges, and apple slices.",
+      c("10|count|eggs|Dairy", "0.5|cup|plain Greek yogurt|Dairy", "2|tbsp|mayonnaise (certified GF)|Pantry", "1|tbsp|Dijon mustard (certified GF)|Pantry", "8|oz|gluten-free crackers|Pantry", "2|count|tomatoes|Produce", "2|count|apples|Produce"),
+      meal_type = "Lunch", calories = 410, protein_g = 23, fiber_g = 5
+    ),
+    make_recipe(
+      "lunch_white_bean_soup", "Tomato White Bean Soup", "Meatless", 25,
+      "A mild pantry soup with white beans, tomatoes, spinach, and rice.",
+      "Combine beans, tomatoes, broth, and rice in a pot. Simmer 15 minutes, stir in spinach until wilted, and season gently.",
+      c("2|can|white beans|Pantry", "1|can|diced tomatoes|Pantry", "4|cup|vegetable broth (certified GF)|Pantry", "2|cup|cooked white rice|Pantry", "5|oz|baby spinach|Produce", "1|tsp|Italian seasoning (certified GF)|Pantry"),
+      meal_type = "Lunch", calories = 380, protein_g = 18, fiber_g = 11
+    ),
+    make_recipe(
+      "lunch_salmon_cakes", "Easy Salmon Rice Cakes", "Fish", 25,
+      "Tender skillet cakes made with canned salmon and leftover rice.",
+      "Mix salmon, rice, eggs, and crumbs. Form small patties and cook in oil until golden and heated through. Serve with cucumber and yogurt.",
+      c("3|can|salmon|Pantry", "2|cup|cooked white rice|Pantry", "2|count|eggs|Dairy", "0.5|cup|gluten-free breadcrumbs|Pantry", "1|tbsp|olive oil|Pantry", "1|count|cucumber|Produce", "0.5|cup|plain Greek yogurt|Dairy"),
+      meal_type = "Lunch", calories = 450, protein_g = 31, fiber_g = 3
     )
   )
+
+  dinner_nutrition <- data.frame(
+    recipe_id = c(
+      "chicken_sheet_pan", "chicken_taco_bowls", "chicken_honey_mustard", "chicken_fried_rice",
+      "turkey_meatballs", "turkey_taco_skillet", "turkey_burgers", "beef_potato_skillet",
+      "beef_taco_bowls", "beef_pot_roast", "pork_apple_sheet_pan", "pork_tenderloin",
+      "pork_fried_rice", "salmon_rice", "fish_tacos", "lemon_cod",
+      "black_bean_quesadillas", "chickpea_coconut", "lentil_pasta", "veggie_egg_rice"
+    ),
+    calories = c(520, 560, 540, 510, 590, 570, 560, 610, 620, 590, 540, 520, 560, 610, 500, 530, 520, 570, 560, 490),
+    protein_g = c(40, 39, 38, 35, 39, 38, 42, 38, 40, 45, 40, 42, 32, 43, 38, 40, 22, 19, 25, 23),
+    fiber_g = c(8, 10, 7, 5, 7, 10, 8, 7, 9, 8, 9, 6, 6, 7, 8, 8, 12, 13, 12, 7),
+    stringsAsFactors = FALSE
+  )
+
+  for (column in c("calories", "protein_g", "fiber_g")) {
+    index <- match(vapply(recipes, function(x) x$meta$recipe_id, character(1)), dinner_nutrition$recipe_id)
+    values <- dinner_nutrition[[column]][index]
+    for (i in which(!is.na(values))) recipes[[i]]$meta[[column]] <- values[i]
+  }
 
   list(
     recipes = do.call(rbind, lapply(recipes, `[[`, "meta")),

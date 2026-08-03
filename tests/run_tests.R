@@ -7,7 +7,14 @@ source(file.path(project_dir, "R", "storage.R"))
 source(file.path(project_dir, "R", "seasonality.R"))
 
 data <- builtin_recipe_data()
-stopifnot(nrow(data$recipes) == 20)
+stopifnot(nrow(data$recipes) == 36)
+stopifnot(identical(sort(unique(data$recipes$meal_type)), c("Breakfast", "Dinner", "Lunch")))
+stopifnot(sum(data$recipes$meal_type == "Dinner") == 20)
+stopifnot(sum(data$recipes$meal_type == "Breakfast") == 8)
+stopifnot(sum(data$recipes$meal_type == "Lunch") == 8)
+stopifnot(all(data$recipes$calories > 0))
+stopifnot(all(data$recipes$protein_g > 0))
+stopifnot(all(data$recipes$fiber_g > 0))
 stopifnot(all(c("Chicken", "Turkey", "Beef", "Pork", "Fish", "Meatless") %in% data$recipes$protein))
 stopifnot(all(data$recipes$minutes <= 35))
 stopifnot(!anyDuplicated(data$recipes$recipe_id))
@@ -18,7 +25,8 @@ set.seed(42)
 plan <- generate_meal_plan(
   data$recipes, data$ingredients,
   proteins = c("Chicken", "Turkey", "Beef", "Pork", "Fish", "Meatless"),
-  pantry_items = c("white rice", "olive oil")
+  pantry_items = c("white rice", "olive oil"),
+  meal_type = "Dinner"
 )
 stopifnot(nrow(plan) == 5)
 stopifnot(length(unique(plan$recipe_id)) == 5)
@@ -26,8 +34,14 @@ plan_proteins <- data$recipes$protein[match(plan$recipe_id, data$recipes$recipe_
 stopifnot(all(plan_proteins[-1] != plan_proteins[-length(plan_proteins)]))
 stopifnot(any(data$recipes$minutes[match(plan$recipe_id, data$recipes$recipe_id)] <= 30))
 
+breakfast_plan <- generate_meal_plan(data$recipes, data$ingredients, unique(data$recipes$protein), meal_type = "Breakfast")
+lunch_plan <- generate_meal_plan(data$recipes, data$ingredients, unique(data$recipes$protein), meal_type = "Lunch")
+stopifnot(all(data$recipes$meal_type[match(breakfast_plan$recipe_id, data$recipes$recipe_id)] == "Breakfast"))
+stopifnot(all(data$recipes$meal_type[match(lunch_plan$recipe_id, data$recipes$recipe_id)] == "Lunch"))
+
 portions <- family_portions(2, 2, 1, lunch_servings = 2)
 stopifnot(identical(portions, 5.4))
+stopifnot(identical(household_portions(2, 2, 1), 3.4))
 groceries <- grocery_list(plan, data$recipes, data$ingredients, portions, c("white rice", "olive oil"))
 stopifnot(nrow(groceries) > 0)
 stopifnot(!any(groceries$ingredient %in% c("white rice", "olive oil")))
@@ -63,8 +77,14 @@ stopifnot("source_url" %in% names(loaded_custom$recipes))
 
 legacy_custom <- custom
 legacy_custom$recipes$source_url <- NULL
+legacy_custom$recipes$meal_type <- NULL
+legacy_custom$recipes$calories <- NULL
+legacy_custom$recipes$protein_g <- NULL
+legacy_custom$recipes$fiber_g <- NULL
 normalized_legacy <- normalize_custom_recipe_data(legacy_custom)
 stopifnot("source_url" %in% names(normalized_legacy$recipes))
 stopifnot(identical(normalized_legacy$recipes$source_url, ""))
+stopifnot(identical(normalized_legacy$recipes$meal_type, "Dinner"))
+stopifnot(identical(normalized_legacy$recipes$calories, 400))
 
 cat("All planner, recipe, season, and deal checks passed.\n")
