@@ -12,7 +12,7 @@ You can also open `run_app.R` and click **Source** after setup. The Desktop copy
 
 ## What is included
 
-- 36 easy starter recipes: 20 dinners, 8 breakfasts, and 8 lunches
+- 126 easy starter recipes: 70 dinners, 28 breakfasts, and 28 lunches
 - A no-code **My Recipes** form with ingredient rows and local saving
 - Recipe-link importing that pre-fills the editable My Recipes form from standard Recipe metadata
 - Five-night planning with protein rotation, meal locks, and individual swaps
@@ -36,6 +36,8 @@ You can also paste a public recipe-page link into **My Recipes > Import from a r
 
 Nutrition values are convenient planning estimates per serving. Imported recipes use the webpage's published nutrition values when available; otherwise the form keeps editable starter estimates. They are not a substitute for a dietitian or a medical nutrition calculation.
 
+The expanded recipe library contains mild, simplified gluten-free adaptations inspired by concepts in TheMealDB and the Wikibooks Cookbook. Each adapted recipe includes a link to its source inspiration. The directions are newly written for this app and the nutrition values are planning estimates. See `ATTRIBUTION.md` for source and license details.
+
 On GitHub Pages, personal data is saved only in the current browser on the current device. Use **Settings > Download my backup** before clearing browser data or moving to another phone. Restore that `.rds` file from the same Settings tab.
 
 ## Publish with GitHub Pages
@@ -56,6 +58,7 @@ The recipes are designed to be gluten-free as written, but ingredient formulatio
 
 - `app.R` — app screens and interactions
 - `R/recipes.R` — starter recipe library
+- `R/expanded_recipes.R` — 90 sourced, simplified recipe adaptations
 - `R/planner.R` — meal selection, portion scaling, and grocery calculations
 - `R/storage.R` — local saved recipes, deals, and preferences
 - `R/seasonality.R` — regional produce seasons and active-deal matching

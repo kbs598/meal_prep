@@ -13,7 +13,7 @@ ingredient_rows <- function(recipe_id, rows) {
 make_recipe <- function(id, name, protein, minutes, description, instructions,
                         ingredient_lines, kid_note = "Serve in small, age-appropriate pieces.",
                         meal_type = "Dinner", calories = NA_real_, protein_g = NA_real_,
-                        fiber_g = NA_real_) {
+                        fiber_g = NA_real_, source = "Built in", source_url = "") {
   list(
     meta = data.frame(
       recipe_id = id,
@@ -28,8 +28,8 @@ make_recipe <- function(id, name, protein, minutes, description, instructions,
       description = description,
       kid_note = kid_note,
       instructions = instructions,
-      source = "Built in",
-      source_url = "",
+      source = source,
+      source_url = source_url,
       stringsAsFactors = FALSE
     ),
     ingredients = ingredient_rows(id, ingredient_lines)

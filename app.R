@@ -9,11 +9,12 @@ if (!requireNamespace("shiny", quietly = TRUE)) {
 library(shiny)
 
 source(file.path(app_dir, "R", "recipes.R"), local = TRUE)
+source(file.path(app_dir, "R", "expanded_recipes.R"), local = TRUE)
 source(file.path(app_dir, "R", "planner.R"), local = TRUE)
 source(file.path(app_dir, "R", "storage.R"), local = TRUE)
 source(file.path(app_dir, "R", "seasonality.R"), local = TRUE)
 
-builtin_data <- builtin_recipe_data()
+builtin_data <- combined_builtin_recipe_data()
 saved_state_path <- state_file(app_dir)
 saved_recipe_path <- custom_recipe_file(app_dir)
 saved_deals_path <- deals_file(app_dir)
@@ -435,18 +436,20 @@ server <- function(input, output, session) {
   }
 
   sync_saved_inputs <- function() {
-    refresh_recipe_inputs()
-    updateCheckboxGroupInput(session, "proteins", selected = state$settings$proteins)
-    updateNumericInput(session, "adults", value = state$settings$adults)
-    updateNumericInput(session, "toddlers", value = state$settings$toddlers)
-    updateNumericInput(session, "young_children", value = state$settings$young_children)
-    updateNumericInput(session, "lunch_servings", value = state$settings$lunch_servings)
-    updateCheckboxInput(session, "plan_breakfast", value = isTRUE(state$settings$plan_breakfast))
-    updateCheckboxInput(session, "plan_lunch", value = isTRUE(state$settings$plan_lunch))
-    updateSelectInput(session, "season_region", selected = state$settings$season_region)
-    updateTextInput(session, "zip_code", value = state$settings$zip_code)
-    updateSelectInput(session, "delete_deal_id",
-                      choices = setNames(state$deals$deal_id, paste(state$deals$store, state$deals$ingredient, sep = " — ")))
+    isolate({
+      refresh_recipe_inputs()
+      updateCheckboxGroupInput(session, "proteins", selected = state$settings$proteins)
+      updateNumericInput(session, "adults", value = state$settings$adults)
+      updateNumericInput(session, "toddlers", value = state$settings$toddlers)
+      updateNumericInput(session, "young_children", value = state$settings$young_children)
+      updateNumericInput(session, "lunch_servings", value = state$settings$lunch_servings)
+      updateCheckboxInput(session, "plan_breakfast", value = isTRUE(state$settings$plan_breakfast))
+      updateCheckboxInput(session, "plan_lunch", value = isTRUE(state$settings$plan_lunch))
+      updateSelectInput(session, "season_region", selected = state$settings$season_region)
+      updateTextInput(session, "zip_code", value = state$settings$zip_code)
+      updateSelectInput(session, "delete_deal_id",
+                        choices = setNames(state$deals$deal_id, paste(state$deals$store, state$deals$ingredient, sep = " — ")))
+    })
   }
 
   observeEvent(input$browser_state, {
@@ -872,7 +875,10 @@ server <- function(input, output, session) {
     showModal(modalDialog(
       title = tagList(span(class = "modal-emoji", unname(protein_emoji[recipe$protein])), recipe$recipe_name),
       tags$p(class = "recipe-description", recipe$description),
-      if (nzchar(recipe$source_url)) tags$a(class = "recipe-source-link", href = recipe$source_url, target = "_blank", rel = "noopener noreferrer", "Open original recipe ↗"),
+      if (nzchar(recipe$source_url)) tags$a(
+        class = "recipe-source-link", href = recipe$source_url, target = "_blank", rel = "noopener noreferrer",
+        if (grepl("adaptation", recipe$source, ignore.case = TRUE)) "View source inspiration ↗" else "Open original recipe ↗"
+      ),
       div(class = "recipe-meta-row", span(paste(recipe$minutes, "minutes")), span(paste(sprintf("%.1f", planned_portions), "planned portions")), span(recipe$meal_type)),
       div(class = "nutrition-strip",
           span(strong(round(recipe$calories)), " calories"),
@@ -926,7 +932,10 @@ server <- function(input, output, session) {
         showModal(modalDialog(
           title = tagList(span(class = "modal-emoji", unname(protein_emoji[recipe$protein])), recipe$recipe_name),
           tags$p(class = "recipe-description", recipe$description),
-          if (nzchar(recipe$source_url)) tags$a(class = "recipe-source-link", href = recipe$source_url, target = "_blank", rel = "noopener noreferrer", "Open original recipe ↗"),
+          if (nzchar(recipe$source_url)) tags$a(
+            class = "recipe-source-link", href = recipe$source_url, target = "_blank", rel = "noopener noreferrer",
+            if (grepl("adaptation", recipe$source, ignore.case = TRUE)) "View source inspiration ↗" else "Open original recipe ↗"
+          ),
           div(class = "recipe-meta-row", span(paste(recipe$minutes, "minutes")), span(paste(sprintf("%.1f", current_portions()), "planned portions")), span(recipe$protein)),
           div(class = "nutrition-strip",
               span(strong(round(recipe$calories)), " calories"),

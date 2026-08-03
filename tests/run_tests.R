@@ -2,16 +2,26 @@ project_dir <- normalizePath(file.path(getwd()), winslash = "/", mustWork = TRUE
 if (basename(project_dir) == "tests") project_dir <- dirname(project_dir)
 
 source(file.path(project_dir, "R", "recipes.R"))
+source(file.path(project_dir, "R", "expanded_recipes.R"))
 source(file.path(project_dir, "R", "planner.R"))
 source(file.path(project_dir, "R", "storage.R"))
 source(file.path(project_dir, "R", "seasonality.R"))
 
-data <- builtin_recipe_data()
-stopifnot(nrow(data$recipes) == 36)
+expanded <- expanded_recipe_data()
+stopifnot(nrow(expanded$recipes) == 90)
+stopifnot(sum(expanded$recipes$meal_type == "Dinner") == 50)
+stopifnot(sum(expanded$recipes$meal_type == "Breakfast") == 20)
+stopifnot(sum(expanded$recipes$meal_type == "Lunch") == 20)
+stopifnot(sum(expanded$recipes$source == "TheMealDB adaptation") == 64)
+stopifnot(sum(expanded$recipes$source == "Wikibooks adaptation (CC BY-SA)") == 26)
+stopifnot(all(nzchar(expanded$recipes$source_url)))
+
+data <- combined_builtin_recipe_data()
+stopifnot(nrow(data$recipes) == 126)
 stopifnot(identical(sort(unique(data$recipes$meal_type)), c("Breakfast", "Dinner", "Lunch")))
-stopifnot(sum(data$recipes$meal_type == "Dinner") == 20)
-stopifnot(sum(data$recipes$meal_type == "Breakfast") == 8)
-stopifnot(sum(data$recipes$meal_type == "Lunch") == 8)
+stopifnot(sum(data$recipes$meal_type == "Dinner") == 70)
+stopifnot(sum(data$recipes$meal_type == "Breakfast") == 28)
+stopifnot(sum(data$recipes$meal_type == "Lunch") == 28)
 stopifnot(all(data$recipes$calories > 0))
 stopifnot(all(data$recipes$protein_g > 0))
 stopifnot(all(data$recipes$fiber_g > 0))
@@ -54,7 +64,7 @@ stopifnot("Corn" %in% seasonal_matches(c("frozen corn", "white rice"), "Southeas
 today <- Sys.Date()
 test_deals <- data.frame(
   deal_id = c("active", "expired"),
-  store = c("ALDI", "Walmart"),
+  store = c("ALDI", "Publix BOGO"),
   ingredient = c("ground turkey", "salmon"),
   offer = c("$2.99/lb", "rollback"),
   start_date = c(today - 1, today - 10),
