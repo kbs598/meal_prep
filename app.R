@@ -24,7 +24,7 @@ recipes <- rbind(builtin_data$recipes, custom_data$recipes)
 ingredients <- rbind(builtin_data$ingredients, custom_data$ingredients)
 all_proteins <- c("Chicken", "Turkey", "Beef", "Pork", "Fish", "Meatless")
 all_ingredients <- sort(unique(ingredients$ingredient))
-ingredient_units <- c("count", "lb", "oz", "cup", "tbsp", "tsp", "can", "bag", "package", "slice")
+ingredient_units <- c("count", "lb", "oz", "cup", "tbsp", "tsp", "can", "bag", "package", "slice", "clove", "bunch", "head", "stalk")
 grocery_categories <- c("Produce", "Meat & Seafood", "Dairy", "Pantry", "Frozen", "Bakery")
 season_regions <- c("Northeast", "Southeast", "Midwest", "Southwest", "West")
 browser_storage_keys <- c(
@@ -123,7 +123,22 @@ ui <- navbarPage(
       class = "page-shell",
       div(class = "page-heading",
           tags$h1("Add a family recipe"),
-          tags$p("Fill in the friendly form—no R code required. Saved recipes immediately join the weekly rotation.")),
+          tags$p("Paste a recipe link for a head start, or fill in the friendly form yourself. Saved recipes immediately join the weekly rotation.")),
+      div(
+        class = "content-card recipe-import-card",
+        div(
+          class = "recipe-import-copy",
+          tags$h2("🔗 Import from a recipe link"),
+          tags$p("Paste the web address of a recipe. We’ll copy its recipe details into the editable form below so you can check everything before saving.")
+        ),
+        div(
+          class = "recipe-import-controls",
+          textInput("recipe_url", "Recipe webpage", placeholder = "https://example.com/favorite-recipe"),
+          actionButton("import_recipe_url", "✨ Fill the form from this link", class = "btn-rainbow")
+        ),
+        uiOutput("recipe_import_status"),
+        tags$p(class = "import-privacy-note", "The public link is sent to Jina Reader to retrieve the recipe page. Some websites block automated reading or do not publish standard recipe details.")
+      ),
       div(
         class = "recipe-entry-layout",
         div(
@@ -136,6 +151,7 @@ ui <- navbarPage(
               numericInput("custom_minutes", "Total minutes", value = 30, min = 5, max = 480),
               numericInput("custom_servings", "Base servings", value = 4, min = 1, max = 30)),
           textAreaInput("custom_description", "Short description", rows = 2, placeholder = "What makes this dinner useful or family-friendly?"),
+          textInput("custom_source_url", "Original recipe link", placeholder = "Optional"),
           textAreaInput("custom_instructions", "Directions", rows = 5, placeholder = "Write the cooking steps here..."),
           textAreaInput("custom_kid_note", "Little-kid serving note", rows = 2, placeholder = "For example: serve the components separately."),
           div(class = "ingredient-heading", tags$h2("Ingredients"), span("Use certified GF products where needed.")),
@@ -271,6 +287,7 @@ server <- function(input, output, session) {
     ingredients = ingredients,
     deals = initial_deals,
     ingredient_row_count = 4,
+    import_status = NULL,
     plan = NULL
   )
   restore_pending <- reactiveVal(NULL)
@@ -353,7 +370,7 @@ server <- function(input, output, session) {
   }
 
   apply_custom_data <- function(saved) {
-    if (!is.list(saved) || !is.data.frame(saved$recipes) || !is.data.frame(saved$ingredients)) return(FALSE)
+    saved <- normalize_custom_recipe_data(saved)
     required_recipe_columns <- names(empty_custom_recipe_data()$recipes)
     required_ingredient_columns <- names(empty_custom_recipe_data()$ingredients)
     if (!all(required_recipe_columns %in% names(saved$recipes)) ||
@@ -503,6 +520,92 @@ server <- function(input, output, session) {
     showNotification("This week was added to meal history.", type = "message")
   }, ignoreInit = TRUE)
 
+  guess_imported_protein <- function(items) {
+    text <- tolower(paste(items, collapse = " "))
+    checks <- list(
+      Chicken = "chicken|chicken breast|chicken thigh",
+      Turkey = "turkey",
+      Beef = "beef|steak|ground chuck|roast",
+      Pork = "pork|ham|bacon|sausage",
+      Fish = "fish|salmon|tuna|cod|tilapia|trout|shrimp"
+    )
+    for (protein in names(checks)) {
+      if (grepl(checks[[protein]], text, perl = TRUE)) return(protein)
+    }
+    "Meatless"
+  }
+
+  output$recipe_import_status <- renderUI({
+    status <- state$import_status
+    if (is.null(status)) return(NULL)
+    icon_text <- switch(status$kind, loading = "⏳", success = "✅", error = "⚠️", "ℹ️")
+    div(
+      class = paste("recipe-import-status", paste0("status-", status$kind)),
+      span(class = "import-status-icon", icon_text),
+      span(status$message)
+    )
+  })
+
+  observeEvent(input$import_recipe_url, {
+    url <- trimws(input$recipe_url %||% "")
+    if (!grepl("^https?://[^[:space:]]+$", url, ignore.case = TRUE)) {
+      state$import_status <- list(kind = "error", message = "Paste a complete recipe link beginning with http:// or https://.")
+      return()
+    }
+    state$import_status <- list(kind = "loading", message = "Reading the recipe page… this can take several seconds.")
+    session$sendCustomMessage("weeknight-five-import-recipe", list(url = url))
+  }, ignoreInit = TRUE)
+
+  observeEvent(input$recipe_import_result, {
+    result <- input$recipe_import_result
+    if (!is.list(result) || !isTRUE(result$ok)) {
+      message <- if (is.list(result)) result$message %||% "That page could not be imported." else "That page could not be imported."
+      state$import_status <- list(kind = "error", message = message)
+      return()
+    }
+
+    imported <- result$recipe
+    imported_items <- imported$ingredients %||% list()
+    if (!length(imported_items)) {
+      state$import_status <- list(kind = "error", message = "The page did not provide a readable ingredient list. The form was not changed.")
+      return()
+    }
+
+    imported_items <- head(imported_items, 30)
+    item_names <- vapply(imported_items, function(x) as.character(x$ingredient %||% ""), character(1))
+    state$ingredient_row_count <- length(imported_items)
+    updateTextInput(session, "custom_name", value = imported$name %||% "Imported recipe")
+    updateSelectInput(session, "custom_protein", selected = guess_imported_protein(item_names))
+    updateNumericInput(session, "custom_minutes", value = max(5, min(480, as.numeric(imported$minutes %||% 30))))
+    updateNumericInput(session, "custom_servings", value = max(1, min(30, as.numeric(imported$servings %||% 4))))
+    updateTextAreaInput(session, "custom_description", value = imported$description %||% "Imported family recipe")
+    updateTextInput(session, "custom_source_url", value = imported$url %||% "")
+    updateTextAreaInput(session, "custom_instructions", value = imported$instructions %||% "")
+    updateTextAreaInput(session, "custom_kid_note", value = "Review the directions and serve in age-appropriate pieces.")
+    updateCheckboxInput(session, "custom_gf_confirm", value = FALSE)
+
+    session$onFlushed(function() {
+      for (i in seq_along(imported_items)) {
+        item <- imported_items[[i]]
+        quantity <- suppressWarnings(as.numeric(item$quantity %||% 1))
+        if (!is.finite(quantity) || quantity <= 0) quantity <- 1
+        unit <- as.character(item$unit %||% "count")
+        if (!unit %in% ingredient_units) unit <- "count"
+        category <- as.character(item$category %||% "Pantry")
+        if (!category %in% grocery_categories) category <- "Pantry"
+        updateNumericInput(session, paste0("custom_qty_", i), value = quantity)
+        updateSelectInput(session, paste0("custom_unit_", i), selected = unit)
+        updateTextInput(session, paste0("custom_ingredient_", i), value = as.character(item$ingredient %||% ""))
+        updateSelectInput(session, paste0("custom_category_", i), selected = category)
+      }
+    }, once = TRUE)
+
+    state$import_status <- list(
+      kind = "success",
+      message = paste0("Form filled with ", length(imported_items), " ingredients. Review the quantities, choose the main protein, and complete the gluten-free check before saving.")
+    )
+  }, ignoreInit = TRUE)
+
   output$ingredient_editor <- renderUI({
     div(class = "ingredient-editor", lapply(seq_len(state$ingredient_row_count), function(i) {
       div(
@@ -520,7 +623,7 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$add_ingredient_row, {
-    if (state$ingredient_row_count < 20) state$ingredient_row_count <- state$ingredient_row_count + 1
+    if (state$ingredient_row_count < 30) state$ingredient_row_count <- state$ingredient_row_count + 1
   }, ignoreInit = TRUE)
 
   observeEvent(input$remove_ingredient_row, {
@@ -566,6 +669,7 @@ server <- function(input, output, session) {
       kid_note = trimws(input$custom_kid_note %||% "Serve in age-appropriate pieces."),
       instructions = instructions_text,
       source = "My recipe",
+      source_url = trimws(input$custom_source_url %||% ""),
       stringsAsFactors = FALSE
     )
     new_ingredients <- do.call(rbind, lapply(entered, function(x) {
@@ -586,12 +690,14 @@ server <- function(input, output, session) {
     updateSelectInput(session, "delete_recipe_id", choices = setNames(custom$recipe_id, custom$recipe_name))
     updateTextInput(session, "custom_name", value = "")
     updateTextAreaInput(session, "custom_description", value = "")
+    updateTextInput(session, "custom_source_url", value = "")
     updateTextAreaInput(session, "custom_instructions", value = "")
     updateTextAreaInput(session, "custom_kid_note", value = "")
     updateNumericInput(session, "custom_minutes", value = 30)
     updateNumericInput(session, "custom_servings", value = 4)
     updateCheckboxInput(session, "custom_gf_confirm", value = FALSE)
     state$ingredient_row_count <- 4
+    state$import_status <- NULL
     showNotification(paste(recipe_name, "was added to the rotation!"), type = "message", duration = 5)
   }, ignoreInit = TRUE)
 
@@ -684,6 +790,7 @@ server <- function(input, output, session) {
         showModal(modalDialog(
           title = tagList(span(class = "modal-emoji", unname(protein_emoji[recipe$protein])), recipe$recipe_name),
           tags$p(class = "recipe-description", recipe$description),
+          if (nzchar(recipe$source_url)) tags$a(class = "recipe-source-link", href = recipe$source_url, target = "_blank", rel = "noopener noreferrer", "Open original recipe ↗"),
           div(class = "recipe-meta-row", span(paste(recipe$minutes, "minutes")), span(paste(sprintf("%.1f", current_portions()), "planned portions")), span(recipe$protein)),
           if (length(seasonal)) div(class = "season-note", strong("In season: "), paste(seasonal, collapse = ", ")),
           if (nrow(sales)) div(class = "sale-note", strong("Matching deals: "), paste(paste(sales$store, sales$ingredient, sales$offer, sep = " — "), collapse = "; ")),
@@ -766,7 +873,11 @@ server <- function(input, output, session) {
       count <- sum(state$ingredients$recipe_id == custom$recipe_id[i])
       div(class = "saved-recipe-item",
           span(class = "protein-icon tiny", unname(protein_emoji[custom$protein[i]])),
-          div(strong(custom$recipe_name[i]), tags$small(paste(custom$protein[i], "•", custom$minutes[i], "min •", count, "ingredients"))))
+          div(
+            strong(custom$recipe_name[i]),
+            tags$small(paste(custom$protein[i], "•", custom$minutes[i], "min •", count, "ingredients")),
+            if (nzchar(custom$source_url[i])) tags$a(class = "saved-source-link", href = custom$source_url[i], target = "_blank", rel = "noopener noreferrer", "Original recipe ↗")
+          ))
     }))
   })
 

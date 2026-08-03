@@ -14,6 +14,7 @@ You can also open `run_app.R` and click **Source** after setup. The Desktop copy
 
 - 20 easy starter recipes across chicken, turkey, beef, pork, fish, and meatless dinners
 - A no-code **My Recipes** form with ingredient rows and local saving
+- Recipe-link importing that pre-fills the editable My Recipes form from standard Recipe metadata
 - Five-night planning with protein rotation, meal locks, and individual swaps
 - Simple “have it / need it” pantry tracking
 - Regional in-season produce highlights
@@ -27,6 +28,8 @@ You can also open `run_app.R` and click **Source** after setup. The Desktop copy
 ## Family recipes
 
 Use the **My Recipes** tab to enter a recipe without editing R files. Add the recipe details and as many ingredient rows as needed, then save. Personal recipes are stored separately from the built-in library and immediately become eligible for weekly rotation.
+
+You can also paste a public recipe-page link into **My Recipes > Import from a recipe link**. The app uses Jina Reader to retrieve the public page and looks for standard Schema.org Recipe data. It fills the form but does not save automatically: review ingredient quantities and grocery sections, select the correct main protein, and complete the gluten/cross-contact check first. Some websites block automated readers or omit standard recipe metadata; those links must be entered manually.
 
 On GitHub Pages, personal data is saved only in the current browser on the current device. Use **Settings > Download my backup** before clearing browser data or moving to another phone. Restore that `.rds` file from the same Settings tab.
 

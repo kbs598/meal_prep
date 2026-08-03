@@ -23,6 +23,7 @@ make_recipe <- function(id, name, protein, minutes, description, instructions,
       kid_note = kid_note,
       instructions = instructions,
       source = "Built in",
+      source_url = "",
       stringsAsFactors = FALSE
     ),
     ingredients = ingredient_rows(id, ingredient_lines)
@@ -166,4 +167,3 @@ builtin_recipe_data <- function() {
     ingredients = do.call(rbind, lapply(recipes, `[[`, "ingredients"))
   )
 }
-

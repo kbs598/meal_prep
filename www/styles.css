@@ -249,6 +249,27 @@ body::before {
   align-items: start;
 }
 
+.recipe-import-card {
+  margin-bottom: 20px;
+  border-top: 6px solid transparent;
+  border-image: linear-gradient(90deg, var(--red), var(--orange), var(--yellow), var(--green), var(--blue), var(--purple)) 1;
+}
+.recipe-import-card h2 { margin-top: 0; }
+.recipe-import-copy p { color: var(--muted); margin-bottom: 18px; }
+.recipe-import-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: end; }
+.recipe-import-controls .form-group { margin-bottom: 0; }
+.recipe-import-controls .form-control { min-height: 44px; }
+.recipe-import-status { display: flex; align-items: flex-start; gap: 9px; margin-top: 16px; border-radius: 13px; padding: 12px 14px; line-height: 1.45; }
+.recipe-import-status.status-loading { background: #eef5ff; color: #315f94; }
+.recipe-import-status.status-success { background: #e9fbf2; color: #266e51; }
+.recipe-import-status.status-error { background: #fff1f2; color: #984356; }
+.import-status-icon { flex: 0 0 auto; }
+.import-privacy-note { margin: 13px 0 0; color: var(--muted); font-size: 12px; }
+.recipe-source-link, .saved-source-link { color: #315f94; font-weight: 750; text-decoration: none; }
+.recipe-source-link:hover, .saved-source-link:hover { text-decoration: underline; }
+.recipe-source-link { display: inline-block; margin-bottom: 8px; }
+.saved-source-link { display: inline-block; margin-top: 5px; font-size: 12px; }
+
 .form-row.two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .recipe-form-card textarea { resize: vertical; }
 .ingredient-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 15px; margin-top: 28px; }
@@ -366,6 +387,8 @@ body::before {
   .meal-actions { grid-column: auto; }
   .heading-with-action { align-items: flex-start; flex-direction: column; }
   .filter-bar, .settings-grid { grid-template-columns: 1fr; }
+  .recipe-import-controls { grid-template-columns: 1fr; }
+  .recipe-import-controls .btn { width: 100%; }
   .settings-wide { grid-column: auto; }
   .backup-actions { display: block; }
   .backup-actions .form-group { margin-top: 18px; }

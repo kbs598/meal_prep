@@ -59,5 +59,12 @@ save_custom_recipe_data(custom, temp_custom_path)
 loaded_custom <- load_custom_recipe_data(temp_custom_path)
 stopifnot(nrow(loaded_custom$recipes) == 1)
 stopifnot(nrow(loaded_custom$ingredients) > 0)
+stopifnot("source_url" %in% names(loaded_custom$recipes))
+
+legacy_custom <- custom
+legacy_custom$recipes$source_url <- NULL
+normalized_legacy <- normalize_custom_recipe_data(legacy_custom)
+stopifnot("source_url" %in% names(normalized_legacy$recipes))
+stopifnot(identical(normalized_legacy$recipes$source_url, ""))
 
 cat("All planner, recipe, season, and deal checks passed.\n")

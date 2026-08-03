@@ -26,12 +26,30 @@ empty_custom_recipe_data <- function() {
       recipe_id = character(), recipe_name = character(), protein = character(),
       minutes = numeric(), base_servings = numeric(), description = character(),
       kid_note = character(), instructions = character(), source = character(),
+      source_url = character(),
       stringsAsFactors = FALSE
     ),
     ingredients = data.frame(
       recipe_id = character(), quantity = numeric(), unit = character(),
       ingredient = character(), category = character(), stringsAsFactors = FALSE
     )
+  )
+}
+
+normalize_custom_recipe_data <- function(data) {
+  fallback <- empty_custom_recipe_data()
+  if (!is.list(data) || !is.data.frame(data$recipes) || !is.data.frame(data$ingredients)) {
+    return(fallback)
+  }
+
+  if (!"source_url" %in% names(data$recipes)) data$recipes$source_url <- ""
+  missing_recipe_columns <- setdiff(names(fallback$recipes), names(data$recipes))
+  missing_ingredient_columns <- setdiff(names(fallback$ingredients), names(data$ingredients))
+  if (length(missing_recipe_columns) || length(missing_ingredient_columns)) return(fallback)
+
+  list(
+    recipes = data$recipes[, names(fallback$recipes), drop = FALSE],
+    ingredients = data$ingredients[, names(fallback$ingredients), drop = FALSE]
   )
 }
 
@@ -42,7 +60,7 @@ load_custom_recipe_data <- function(path) {
   if (is.null(saved) || !is.list(saved) || is.null(saved$recipes) || is.null(saved$ingredients)) {
     return(fallback)
   }
-  saved
+  normalize_custom_recipe_data(saved)
 }
 
 save_custom_recipe_data <- function(data, path) {
