@@ -121,7 +121,7 @@ ui <- navbarPage(
         class = "filter-bar",
         selectInput("recipe_meal_type", "Show meal", choices = c("All", meal_types), selected = "All"),
         selectInput("recipe_protein", "Show protein", choices = c("All", all_proteins), selected = "All"),
-        sliderInput("recipe_time", "Maximum time", min = 20, max = 45, value = 45, step = 5, post = " min")
+        sliderInput("recipe_time", "Maximum time", min = 20, max = 120, value = 120, step = 5, post = " min")
       ),
       uiOutput("recipe_gallery")
     )
