@@ -2,15 +2,23 @@ project_dir <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
 project_library <- file.path(project_dir, "packages")
 .libPaths(c(project_library, .libPaths()))
 
+source(file.path(project_dir, "R", "recipes.R"))
+source(file.path(project_dir, "R", "storage.R"))
+
+app_recipe_path <- custom_recipe_file(project_dir)
+seed_data <- sample_recipe_data()
+seed_data$recipes$source <- "My recipe"
+save_custom_recipe_data(seed_data, app_recipe_path)
+
 source(file.path(project_dir, "app.R"))
 
 test_storage_dir <- file.path(tempdir(), paste0("weeknight-five-", Sys.getpid()))
 dir.create(test_storage_dir, recursive = TRUE, showWarnings = FALSE)
-saved_state_path <- file.path(test_storage_dir, "state.rds")
-saved_recipe_path <- file.path(test_storage_dir, "custom_recipes.rds")
-saved_deals_path <- file.path(test_storage_dir, "deals.rds")
 
 shiny::testServer(server, {
+  session$setInputs(browser_storage_ready = 1)
+  session$flushReact()
+
   session$setInputs(
     adults = 2,
     toddlers = 2,
@@ -65,9 +73,6 @@ shiny::testServer(server, {
     custom_meal_type = "Lunch",
     custom_minutes = 25,
     custom_servings = 4,
-    custom_calories = 420,
-    custom_protein_g = 36,
-    custom_fiber_g = 6,
     custom_description = "A test recipe",
     custom_instructions = "Cook the chicken safely.",
     custom_kid_note = "Cut into small pieces.",
@@ -82,8 +87,7 @@ shiny::testServer(server, {
   stopifnot(any(state$recipes$recipe_name == "Test Family Chicken"))
   test_recipe <- state$recipes[state$recipes$recipe_name == "Test Family Chicken", , drop = FALSE]
   stopifnot(test_recipe$meal_type == "Lunch")
-  stopifnot(test_recipe$calories == 420)
-  stopifnot(file.exists(saved_recipe_path))
+  stopifnot(file.exists(app_recipe_path))
 
   session$setInputs(supabase_auth = list(
     status = "signed_in", configured = TRUE, email = "cook@example.com",
@@ -118,7 +122,7 @@ shiny::testServer(server, {
   session$setInputs(save_deal = 1)
   session$flushReact()
   stopifnot(nrow(state$deals) == 1)
-  stopifnot(file.exists(saved_deals_path))
+  stopifnot(file.exists(deals_file(project_dir)))
   stopifnot(nrow(recipe_deals(state$recipes$recipe_id[state$recipes$recipe_name == "Test Family Chicken"])) == 1)
   stopifnot(!is.null(output$seasonal_now))
 })

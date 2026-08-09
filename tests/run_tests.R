@@ -4,30 +4,14 @@ project_library <- file.path(project_dir, "packages")
 if (dir.exists(project_library)) .libPaths(c(project_library, .libPaths()))
 
 source(file.path(project_dir, "R", "recipes.R"))
-source(file.path(project_dir, "R", "expanded_recipes.R"))
 source(file.path(project_dir, "R", "planner.R"))
 source(file.path(project_dir, "R", "storage.R"))
 source(file.path(project_dir, "R", "supabase.R"))
 source(file.path(project_dir, "R", "seasonality.R"))
 
-expanded <- expanded_recipe_data()
-stopifnot(nrow(expanded$recipes) == 90)
-stopifnot(sum(expanded$recipes$meal_type == "Dinner") == 50)
-stopifnot(sum(expanded$recipes$meal_type == "Breakfast") == 20)
-stopifnot(sum(expanded$recipes$meal_type == "Lunch") == 20)
-stopifnot(sum(expanded$recipes$source == "TheMealDB adaptation") == 64)
-stopifnot(sum(expanded$recipes$source == "Wikibooks adaptation (CC BY-SA)") == 26)
-stopifnot(all(nzchar(expanded$recipes$source_url)))
-
-data <- combined_builtin_recipe_data()
-stopifnot(nrow(data$recipes) == 126)
+data <- sample_recipe_data()
+stopifnot(nrow(data$recipes) == 8)
 stopifnot(identical(sort(unique(data$recipes$meal_type)), c("Breakfast", "Dinner", "Lunch")))
-stopifnot(sum(data$recipes$meal_type == "Dinner") == 70)
-stopifnot(sum(data$recipes$meal_type == "Breakfast") == 28)
-stopifnot(sum(data$recipes$meal_type == "Lunch") == 28)
-stopifnot(all(data$recipes$calories > 0))
-stopifnot(all(data$recipes$protein_g > 0))
-stopifnot(all(data$recipes$fiber_g > 0))
 stopifnot(all(c("Chicken", "Turkey", "Beef", "Pork", "Fish", "Meatless") %in% data$recipes$protein))
 stopifnot(all(data$recipes$minutes <= 35))
 stopifnot(!anyDuplicated(data$recipes$recipe_id))
@@ -91,14 +75,10 @@ stopifnot("source_url" %in% names(loaded_custom$recipes))
 legacy_custom <- custom
 legacy_custom$recipes$source_url <- NULL
 legacy_custom$recipes$meal_type <- NULL
-legacy_custom$recipes$calories <- NULL
-legacy_custom$recipes$protein_g <- NULL
-legacy_custom$recipes$fiber_g <- NULL
 normalized_legacy <- normalize_custom_recipe_data(legacy_custom)
 stopifnot("source_url" %in% names(normalized_legacy$recipes))
 stopifnot(identical(normalized_legacy$recipes$source_url, ""))
 stopifnot(identical(normalized_legacy$recipes$meal_type, "Dinner"))
-stopifnot(identical(normalized_legacy$recipes$calories, 400))
 
 cloud_single <- single_custom_recipe_data(
   custom$recipes$recipe_id[1],

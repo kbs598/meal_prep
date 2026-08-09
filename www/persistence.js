@@ -286,7 +286,6 @@
       var minutes = durationMinutes(recipe.totalTime);
       if (!minutes) minutes = durationMinutes(recipe.prepTime) + durationMinutes(recipe.cookTime);
       if (!minutes) minutes = 30;
-      var nutrition = recipe.nutrition || {};
       var categoryText = Array.isArray(recipe.recipeCategory) ? recipe.recipeCategory.join(" ") : String(recipe.recipeCategory || "");
       var importedMealType = /breakfast|brunch/i.test(categoryText) ? "Breakfast" : (/lunch/i.test(categoryText) ? "Lunch" : "Dinner");
 
@@ -298,9 +297,6 @@
           meal_type: importedMealType,
           minutes: minutes,
           servings: recipeServings(recipe.recipeYield || recipe.yield),
-          calories: nutrientNumber(nutrition.calories),
-          protein_g: nutrientNumber(nutrition.proteinContent),
-          fiber_g: nutrientNumber(nutrition.fiberContent),
           instructions: steps.map(function (step, index) { return (index + 1) + ". " + step; }).join("\n\n"),
           ingredients: ingredients,
           url: source.href
